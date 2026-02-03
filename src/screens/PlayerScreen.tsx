@@ -1,16 +1,110 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-
-const track = {
-    title: 'Le Chemin de la Grâce',
-    seriesTitle: 'Comprendre la Foi',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAk_P96jDVIlRGcwtDeWuAOwJYUlNH5eP85VmkDZov9NnDTzvtwBRFXQmG8KeR0mClBTAWUfwczdA1W4rrfs_or3v9W2n-IiSuJx6nPQg95hioWEB88fl_yRU97BJcsWFJzc4m65MA4ctYs-6BqT-0l19OLx2mNlmbOA2bnreEo5wqNMgEwZXZ6Va_8wIb3Bes3knDAjwe-OwgMl_-W0W4jniFlJR7GHTPlzD44Viys6aYOkjMfBqMpgar9SJyZcTUe0MAptwpC2ujF',
-};
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { booksService, playerService } from '../services/api';
 
 export default function PlayerScreen() {
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const { bookId, programId } = route.params || {};
+
+    const [loading, setLoading] = useState(true);
+    const [track, setTrack] = useState<any>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0); // 0 to 100
+    const [duration, setDuration] = useState(1500); // En secondes (mock)
+    const [currentTime, setCurrentTime] = useState(0);
+
+    const progressInterval = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        loadTrack();
+        return () => stopPlayer();
+    }, [bookId, programId]);
+
+    const loadTrack = async () => {
+        try {
+            setLoading(true);
+            let data;
+            if (bookId) {
+                const response = await booksService.getBook(bookId);
+                data = response.data;
+            } else {
+                // Fallback mock track
+                data = {
+                    id: 'fake',
+                    title: 'Le Chemin de la Grâce',
+                    author: 'Pasteur Francis',
+                    cover_image_url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAk_P96jDVIlRGcwtDeWuAOwJYUlNH5eP85VmkDZov9NnDTzvtwBRFXQmG8KeR0mClBTAWUfwczdA1W4rrfs_or3v9W2n-IiSuJx6nPQg95hioWEB88fl_yRU97BJcsWFJzc4m65MA4ctYs-6BqT-0l19OLx2mNlmbOA2bnreEo5wqNMgEwZXZ6Va_8wIb3Bes3knDAjwe-OwgMl_-W0W4jniFlJR7GHTPlzD44Viys6aYOkjMfBqMpgar9SJyZcTUe0MAptwpC2ujF'
+                };
+            }
+            setTrack(data);
+            setIsPlaying(true);
+            startProgress();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const startProgress = () => {
+        if (progressInterval.current) clearInterval(progressInterval.current);
+        progressInterval.current = setInterval(() => {
+            setCurrentTime(prev => {
+                if (prev >= duration) {
+                    stopPlayer();
+                    return prev;
+                }
+                return prev + 1;
+            });
+        }, 1000);
+    };
+
+    const stopPlayer = () => {
+        if (progressInterval.current) {
+            clearInterval(progressInterval.current);
+            progressInterval.current = null;
+        }
+        setIsPlaying(false);
+        saveProgress();
+    };
+
+    const togglePlay = () => {
+        if (isPlaying) {
+            stopPlayer();
+        } else {
+            setIsPlaying(true);
+            startProgress();
+        }
+    };
+
+    const saveProgress = async () => {
+        if (!track || !bookId) return;
+        try {
+            const progressPercent = Math.round((currentTime / duration) * 100);
+            await playerService.updateProgress(bookId, progressPercent, 'book');
+        } catch (error) {
+            console.error('Failed to save progress', error);
+        }
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#f2d00d" />
+            </View>
+        );
+    }
+
+    if (!track) return null;
 
     return (
         <View style={styles.container}>
@@ -27,7 +121,11 @@ export default function PlayerScreen() {
 
             {/* Couverture */}
             <View style={styles.coverWrapper}>
-                <Image source={{ uri: track.imageUrl }} style={styles.coverImage} resizeMode="cover" />
+                <Image
+                    source={{ uri: track.cover_image_url || track.imageUrl }}
+                    style={styles.coverImage}
+                    resizeMode="cover"
+                />
                 <View style={styles.coverGlow} />
             </View>
 
@@ -35,7 +133,7 @@ export default function PlayerScreen() {
             <View style={styles.infoSection}>
                 <View style={styles.infoText}>
                     <Text style={styles.trackTitle}>{track.title}</Text>
-                    <Text style={styles.trackSeries}>{track.seriesTitle}</Text>
+                    <Text style={styles.trackSeries}>{track.author}</Text>
                 </View>
                 <TouchableOpacity style={styles.heartButton}>
                     <MaterialIcons name="favorite-border" size={28} color="rgba(255,255,255,0.8)" />
@@ -45,12 +143,12 @@ export default function PlayerScreen() {
             {/* Progression */}
             <View style={styles.progressSection}>
                 <View style={styles.progressBar}>
-                    <View style={styles.progressFill} />
-                    <View style={styles.progressKnob} />
+                    <View style={[styles.progressFill, { width: `${(currentTime / duration) * 100}%` }]} />
+                    <View style={[styles.progressKnob, { left: `${(currentTime / duration) * 100}%` }]} />
                 </View>
                 <View style={styles.timeRow}>
-                    <Text style={styles.timeText}>12:45</Text>
-                    <Text style={styles.timeText}>-25:35</Text>
+                    <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                    <Text style={styles.timeText}>-{formatTime(duration - currentTime)}</Text>
                 </View>
             </View>
 
@@ -62,8 +160,8 @@ export default function PlayerScreen() {
                 <TouchableOpacity style={styles.controlButton}>
                     <MaterialIcons name="skip-previous" size={40} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.playButton}>
-                    <MaterialIcons name="pause" size={40} color="#1a0f00" />
+                <TouchableOpacity style={styles.playButton} onPress={togglePlay}>
+                    <MaterialIcons name={isPlaying ? "pause" : "play-arrow"} size={40} color="#1a0f00" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.controlButton}>
                     <MaterialIcons name="skip-next" size={40} color="rgba(255,255,255,0.8)" />
@@ -77,7 +175,7 @@ export default function PlayerScreen() {
             <View style={styles.bottomActions}>
                 <TouchableOpacity style={styles.speedButton}>
                     <MaterialIcons name="speed" size={20} color="white" />
-                    <Text style={styles.speedText}>1.2x</Text>
+                    <Text style={styles.speedText}>1.0x</Text>
                 </TouchableOpacity>
                 <View style={styles.actionButtons}>
                     <TouchableOpacity style={styles.actionButton}>
@@ -98,179 +196,173 @@ export default function PlayerScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#1a0f00',
-        paddingHorizontal: 24,
-        paddingBottom: 40,
+        backgroundColor: '#2b2106', // Fond légèrement différent pour le player
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 48,
-        paddingBottom: 16,
+        paddingHorizontal: 24,
+        paddingTop: 50,
     },
     headerButton: {
-        width: 48,
-        height: 48,
+        width: 40,
+        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
     headerTitle: {
-        color: 'white',
-        fontSize: 14,
-        fontWeight: '600',
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 12,
+        fontWeight: 'bold',
         letterSpacing: 2,
     },
     coverWrapper: {
-        width: '100%',
-        aspectRatio: 1,
-        borderRadius: 16,
-        overflow: 'hidden',
-        backgroundColor: '#333',
-        marginVertical: 16,
-        shadowColor: '#f2d00d',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 24,
-        elevation: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 40,
+        marginBottom: 40,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.5,
+        shadowRadius: 30,
+        elevation: 20,
+        position: 'relative',
     },
     coverImage: {
-        width: '100%',
-        height: '100%',
+        width: 300,
+        height: 300,
+        borderRadius: 20,
     },
     coverGlow: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 100,
-        backgroundColor: 'transparent',
+        top: 20,
+        left: 20,
+        right: 20,
+        bottom: -20,
+        borderRadius: 30,
+        backgroundColor: 'rgba(242, 208, 13, 0.2)',
+        zIndex: -1,
+        transform: [{ scale: 0.9 }],
     },
     infoSection: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 24,
-        marginBottom: 16,
+        paddingHorizontal: 32,
+        marginBottom: 32,
     },
     infoText: {
         flex: 1,
+        marginRight: 16,
     },
     trackTitle: {
         color: 'white',
         fontSize: 24,
         fontWeight: 'bold',
+        marginBottom: 8,
     },
     trackSeries: {
         color: 'rgba(255,255,255,0.6)',
         fontSize: 16,
-        marginTop: 4,
     },
     heartButton: {
-        width: 48,
-        height: 48,
+        width: 40,
+        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
     progressSection: {
-        marginTop: 8,
+        paddingHorizontal: 32,
+        marginBottom: 40,
     },
     progressBar: {
-        width: '100%',
-        height: 6,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        borderRadius: 3,
+        height: 4,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 2,
+        marginBottom: 12,
         position: 'relative',
     },
     progressFill: {
         position: 'absolute',
-        top: 0,
         left: 0,
-        width: '35%',
-        height: '100%',
+        top: 0,
+        bottom: 0,
         backgroundColor: '#f2d00d',
-        borderRadius: 3,
+        borderRadius: 2,
     },
     progressKnob: {
         position: 'absolute',
-        top: -5,
-        left: '35%',
-        marginLeft: -8,
+        top: -6,
         width: 16,
         height: 16,
-        backgroundColor: 'white',
         borderRadius: 8,
-        shadowColor: '#000',
+        backgroundColor: 'white',
+        shadowColor: 'black',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,
-        elevation: 5,
+        elevation: 4,
     },
     timeRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 12,
     },
     timeText: {
-        color: 'rgba(255,255,255,0.5)',
+        color: 'rgba(255,255,255,0.4)',
         fontSize: 12,
-        fontWeight: '500',
+        fontVariant: ['tabular-nums'],
     },
     controls: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 32,
+        justifyContent: 'space-between',
+        paddingHorizontal: 32,
+        marginBottom: 40,
     },
     controlButton: {
-        width: 56,
-        height: 56,
+        width: 48,
+        height: 48,
         alignItems: 'center',
         justifyContent: 'center',
     },
     playButton: {
         width: 80,
         height: 80,
-        backgroundColor: '#f2d00d',
         borderRadius: 40,
+        backgroundColor: '#f2d00d',
         alignItems: 'center',
         justifyContent: 'center',
-        marginHorizontal: 16,
         shadowColor: '#f2d00d',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.4,
-        shadowRadius: 12,
-        elevation: 8,
+        shadowRadius: 20,
+        elevation: 10,
     },
     bottomActions: {
-        marginTop: 'auto',
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 32,
     },
     speedButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 24,
         backgroundColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
     },
     speedText: {
         color: 'white',
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: 'bold',
-        marginLeft: 8,
+        marginLeft: 6,
     },
     actionButtons: {
         flexDirection: 'row',
     },
     actionButton: {
-        width: 48,
-        height: 48,
-        alignItems: 'center',
-        justifyContent: 'center',
+        marginLeft: 24,
     },
 });

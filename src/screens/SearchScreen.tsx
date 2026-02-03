@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,10 +6,13 @@ import {
     Image,
     ScrollView,
     TouchableOpacity,
-    StyleSheet
+    StyleSheet,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { searchService } from '../services/api';
+import { Book, CoachingProgram, News } from '../types/api';
 
 const recentSearches = ['Pasteur Francis', 'La Grâce', 'Méditation', 'Coaching'];
 
@@ -19,33 +22,127 @@ const trendingTopics = [
     { id: '3', title: 'Guérison Spirituelle', count: '1.2k recherches' },
 ];
 
-const suggestions = [
-    {
-        id: '1',
-        type: 'audiobook',
-        title: 'Le Chemin de la Grâce',
-        author: 'Pasteur Francis',
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAk_P96jDVIlRGcwtDeWuAOwJYUlNH5eP85VmkDZov9NnDTzvtwBRFXQmG8KeR0mClBTAWUfwczdA1W4rrfs_or3v9W2n-IiSuJx6nPQg95hioWEB88fl_yRU97BJcsWFJzc4m65MA4ctYs-6BqT-0l19OLx2mNlmbOA2bnreEo5wqNMgEwZXZ6Va_8wIb3Bes3knDAjwe-OwgMl_-W0W4jniFlJR7GHTPlzD44Viys6aYOkjMfBqMpgar9SJyZcTUe0MAptwpC2ujF',
-    },
-    {
-        id: '2',
-        type: 'ebook',
-        title: 'Marcher dans la Foi',
-        author: 'Pasteur Francis',
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC65_rrcQgI7Gg6AFnG2ElqYdwOVh0f5oNsF1AJN41YiG0mqXmO8VPWwV5uz1IUuqHXItOiFyfNFuZW1N8k6IWXSIhvRYKANNpVjeYTOJl5WkHmIdOg1WoJrs59x1CncjT-UQMC5iH89RupyrYRiCKDvxSp6xOh9myp82edUdn1peA-QDdCTTUmUxURjoniO_5G3y9pxL-w2qyRQ-tUMkGeYJNNaRpEjNVrPeHl57Y3WBr_BNPXkJJIcWZbiPoqdOB3oGgUW5p9OcEe',
-    },
-    {
-        id: '3',
-        type: 'coaching',
-        title: 'Maîtrise Mentale',
-        author: 'Programme Coaching',
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAhSOu10N9ERlhJYg2HQKt_D8a0fMnP9bFVBJV7TtAviK99OGvZAQcYIP0cZVR-7HrN_Ju0wvN0cmISOOV0w_d-TqdqZWuaR3mpxZGDrm5aRFJT6QEtjhHFB0w4u8Rv_EajIb3mSscBKDdtSxvlfFfpkcOnyRvTQ5Aul8wbSQFAzMiv-ARedBTOINs6a47NE3aoIoeVAuxELXz-SGjN-OaXHO2ZtZxh_ZQy2uivotWDF5ZikVCHjnB_yOIwI39jYxeOxouJbcUnyIhL',
-    },
-];
-
 export default function SearchScreen() {
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
     const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [results, setResults] = useState<{
+        books: Book[],
+        coaching: CoachingProgram[],
+        news: News[]
+    } | null>(null);
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchQuery.length > 2) {
+                performSearch();
+            } else {
+                setResults(null);
+            }
+        }, 600);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
+
+    const performSearch = async () => {
+        try {
+            setLoading(true);
+            const data = await searchService.search(searchQuery);
+            setResults(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResultPress = (item: any, type: 'book' | 'coaching' | 'news') => {
+        if (type === 'book') navigation.navigate('BookDetail', { bookId: item.id });
+        if (type === 'coaching') navigation.navigate('CoachingDetail', { programId: item.id });
+        if (type === 'news') navigation.navigate('NewsDetail', { newsId: item.id });
+    };
+
+    const renderResults = () => {
+        if (!results) return null;
+
+        const hasResults = results.books.length > 0 || results.coaching.length > 0 || results.news.length > 0;
+
+        if (!hasResults && !loading) {
+            return (
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>Aucun résultat trouvé pour "{searchQuery}"</Text>
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Résultats</Text>
+
+                {/* Livres et Audiobooks */}
+                {results.books.map((item) => (
+                    <TouchableOpacity
+                        key={`book-${item.id}`}
+                        style={styles.suggestionCard}
+                        onPress={() => handleResultPress(item, 'book')}
+                    >
+                        <Image source={{ uri: item.cover_image_url }} style={styles.suggestionImage} />
+                        <View style={styles.suggestionInfo}>
+                            <View style={styles.typeTag}>
+                                <MaterialIcons
+                                    name={item.type === 'audiobook' ? 'headset' : 'menu-book'}
+                                    size={12}
+                                    color="#f2d00d"
+                                />
+                                <Text style={styles.typeTagText}>
+                                    {item.type === 'audiobook' ? 'AUDIO' : 'LIVRE'}
+                                </Text>
+                            </View>
+                            <Text style={styles.suggestionTitle} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.suggestionAuthor}>{item.author}</Text>
+                        </View>
+                    </TouchableOpacity>
+                ))}
+
+                {/* Coaching */}
+                {results.coaching.map((item) => (
+                    <TouchableOpacity
+                        key={`coaching-${item.id}`}
+                        style={styles.suggestionCard}
+                        onPress={() => handleResultPress(item, 'coaching')}
+                    >
+                        <Image source={{ uri: item.cover_image_url }} style={styles.suggestionImage} />
+                        <View style={styles.suggestionInfo}>
+                            <View style={[styles.typeTag, { backgroundColor: 'rgba(50, 200, 255, 0.15)' }]}>
+                                <MaterialIcons name="school" size={12} color="#32c8ff" />
+                                <Text style={[styles.typeTagText, { color: '#32c8ff' }]}>COACHING</Text>
+                            </View>
+                            <Text style={styles.suggestionTitle} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.suggestionAuthor}>Programme</Text>
+                        </View>
+                    </TouchableOpacity>
+                ))}
+
+                {/* News */}
+                {results.news.map((item) => (
+                    <TouchableOpacity
+                        key={`news-${item.id}`}
+                        style={styles.suggestionCard}
+                        onPress={() => handleResultPress(item, 'news')}
+                    >
+                        <Image source={{ uri: item.image_url }} style={styles.suggestionImage} />
+                        <View style={styles.suggestionInfo}>
+                            <View style={[styles.typeTag, { backgroundColor: 'rgba(255, 100, 100, 0.15)' }]}>
+                                <MaterialIcons name="article" size={12} color="#ff6464" />
+                                <Text style={[styles.typeTagText, { color: '#ff6464' }]}>ACTUALITÉ</Text>
+                            </View>
+                            <Text style={styles.suggestionTitle} numberOfLines={1}>{item.title}</Text>
+                        </View>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -77,71 +174,60 @@ export default function SearchScreen() {
                 contentContainerStyle={{ paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Recherches récentes */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Recherches Récentes</Text>
-                        <TouchableOpacity>
-                            <Text style={styles.clearText}>Effacer</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.recentChips}>
-                        {recentSearches.map((search) => (
-                            <TouchableOpacity key={search} style={styles.recentChip}>
-                                <MaterialIcons name="history" size={16} color="rgba(255,255,255,0.5)" />
-                                <Text style={styles.recentChipText}>{search}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
+                {loading && (
+                    <ActivityIndicator style={{ marginTop: 32 }} color="#f2d00d" />
+                )}
 
-                {/* Tendances */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Tendances</Text>
-                    <View style={styles.trendingList}>
-                        {trendingTopics.map((topic, index) => (
-                            <TouchableOpacity key={topic.id} style={styles.trendingItem}>
-                                <View style={styles.trendingRank}>
-                                    <Text style={styles.trendingRankText}>{index + 1}</Text>
-                                </View>
-                                <View style={styles.trendingInfo}>
-                                    <Text style={styles.trendingTitle}>{topic.title}</Text>
-                                    <Text style={styles.trendingCount}>{topic.count}</Text>
-                                </View>
-                                <MaterialIcons name="trending-up" size={20} color="#f2d00d" />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Suggestions */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Suggestions pour vous</Text>
-                    <View style={styles.suggestionsList}>
-                        {suggestions.map((item) => (
-                            <TouchableOpacity key={item.id} style={styles.suggestionCard}>
-                                <Image source={{ uri: item.imageUrl }} style={styles.suggestionImage} />
-                                <View style={styles.suggestionInfo}>
-                                    <View style={styles.typeTag}>
-                                        <MaterialIcons
-                                            name={item.type === 'audiobook' ? 'headset' : item.type === 'ebook' ? 'menu-book' : 'school'}
-                                            size={12}
-                                            color="#f2d00d"
-                                        />
-                                        <Text style={styles.typeTagText}>
-                                            {item.type === 'audiobook' ? 'AUDIO' : item.type === 'ebook' ? 'E-BOOK' : 'COACHING'}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.suggestionTitle} numberOfLines={1}>{item.title}</Text>
-                                    <Text style={styles.suggestionAuthor}>{item.author}</Text>
-                                </View>
-                                <TouchableOpacity style={styles.playButton}>
-                                    <MaterialIcons name="play-arrow" size={20} color="black" />
+                {!loading && results ? (
+                    renderResults()
+                ) : (
+                    <>
+                        {/* Recherches récentes */}
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Recherches Récentes (Simulées)</Text>
+                                <TouchableOpacity>
+                                    <Text style={styles.clearText}>Effacer</Text>
                                 </TouchableOpacity>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
+                            </View>
+                            <View style={styles.recentChips}>
+                                {recentSearches.map((search) => (
+                                    <TouchableOpacity
+                                        key={search}
+                                        style={styles.recentChip}
+                                        onPress={() => setSearchQuery(search)}
+                                    >
+                                        <MaterialIcons name="history" size={16} color="rgba(255,255,255,0.5)" />
+                                        <Text style={styles.recentChipText}>{search}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
+                        {/* Tendances */}
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Tendances</Text>
+                            <View style={styles.trendingList}>
+                                {trendingTopics.map((topic, index) => (
+                                    <TouchableOpacity
+                                        key={topic.id}
+                                        style={styles.trendingItem}
+                                        onPress={() => setSearchQuery(topic.title)}
+                                    >
+                                        <View style={styles.trendingRank}>
+                                            <Text style={styles.trendingRankText}>{index + 1}</Text>
+                                        </View>
+                                        <View style={styles.trendingInfo}>
+                                            <Text style={styles.trendingTitle}>{topic.title}</Text>
+                                            <Text style={styles.trendingCount}>{topic.count}</Text>
+                                        </View>
+                                        <MaterialIcons name="trending-up" size={20} color="#f2d00d" />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    </>
+                )}
             </ScrollView>
         </View>
     );
@@ -266,7 +352,14 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginTop: 2,
     },
-    suggestionsList: {},
+    emptyState: {
+        padding: 32,
+        alignItems: 'center',
+    },
+    emptyText: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 16,
+    },
     suggestionCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -311,13 +404,5 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.4)',
         fontSize: 12,
         marginTop: 2,
-    },
-    playButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#f2d00d',
-        alignItems: 'center',
-        justifyContent: 'center',
     },
 });

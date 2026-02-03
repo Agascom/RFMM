@@ -1,66 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     Image,
     ScrollView,
     TouchableOpacity,
-    StyleSheet
+    StyleSheet,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-
-const notifications = [
-    {
-        id: '1',
-        type: 'new_content',
-        title: 'Nouveau Podcast Disponible',
-        message: '"La Paix Intérieure" - Épisode 16 est maintenant disponible.',
-        time: 'Il y a 2h',
-        isRead: false,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBfKNyvZxVCceSH1_w0YHwYqXg13l_xgpIut6zqnKmwsz_N7TVjJiGun-nIeH4scRV7F8eCIMOMW5WwUjnhA9suDx3LlntsNqmYOjZvuJugt_Z_TBwl2GHUaEpMv81z3xZt_t-oFBh6OBuzjCCh7MaFK_nNo7BI2kuuzZQB9748XW3vXImy4bYoGH0Eqb0z55OlPV9M1I-1Oa6gbiwrI_FPLG2tMHYbdWGT-AsE5NO9CWd1yZF9_UmhnGiO3Pp2tCwKt93SZsF63wtx',
-    },
-    {
-        id: '2',
-        type: 'event',
-        title: 'Événement ce Dimanche',
-        message: 'N\'oubliez pas le Sommet Annuel de la Sagesse ce dimanche à 10h.',
-        time: 'Il y a 5h',
-        isRead: false,
-        icon: 'event',
-    },
-    {
-        id: '3',
-        type: 'promotion',
-        title: 'Offre Spéciale',
-        message: '-30% sur tous les e-books jusqu\'à dimanche ! Utilisez le code GRACE30.',
-        time: 'Hier',
-        isRead: true,
-        icon: 'local-offer',
-    },
-    {
-        id: '4',
-        type: 'coaching',
-        title: 'Session de Coaching',
-        message: 'Votre session "Maîtrise Mentale" reprend où vous l\'avez laissée.',
-        time: 'Hier',
-        isRead: true,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAhSOu10N9ERlhJYg2HQKt_D8a0fMnP9bFVBJV7TtAviK99OGvZAQcYIP0cZVR-7HrN_Ju0wvN0cmISOOV0w_d-TqdqZWuaR3mpxZGDrm5aRFJT6QEtjhHFB0w4u8Rv_EajIb3mSscBKDdtSxvlfFfpkcOnyRvTQ5Aul8wbSQFAzMiv-ARedBTOINs6a47NE3aoIoeVAuxELXz-SGjN-OaXHO2ZtZxh_ZQy2uivotWDF5ZikVCHjnB_yOIwI39jYxeOxouJbcUnyIhL',
-    },
-    {
-        id: '5',
-        type: 'system',
-        title: 'Mise à jour disponible',
-        message: 'Une nouvelle version de RFMM est disponible. Mettez à jour pour profiter des nouvelles fonctionnalités.',
-        time: 'Il y a 2 jours',
-        isRead: true,
-        icon: 'system-update',
-    },
-];
+import { notificationService } from '../services/api';
 
 export default function NotificationsScreen() {
     const navigation = useNavigation();
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadNotifications();
+    }, []);
+
+    const loadNotifications = async () => {
+        try {
+            setLoading(true);
+            const data = await notificationService.getAll();
+            // Si data est vide (api mock response peut etre un array vide pour l'instant)
+            // On peut laisser vide ou mettre les mocks si l'api n'est pas prete. 
+            // Pour l'exercice "Tout API", on prend la data API.
+            setNotifications(data || []);
+        } catch (error) {
+            console.error(error);
+            setNotifications([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMarkAsRead = async (id: string) => {
+        try {
+            await notificationService.markAsRead(id);
+            // Update local state
+            setNotifications(prev => prev.map(n =>
+                n.id === id ? { ...n, isRead: true, read_at: new Date().toISOString() } : n
+            ));
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    // Calcul mocké pour l'instant si l'API ne renvoie pas isRead booleen direct mais read_at
+    const unreadCount = notifications.filter(n => !n.read_at && !n.isRead).length;
 
     return (
         <View style={styles.container}>
@@ -85,58 +75,73 @@ export default function NotificationsScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={{ paddingBottom: 100 }}
-                showsVerticalScrollIndicator={false}
-            >
-                {notifications.map((notification) => (
-                    <TouchableOpacity
-                        key={notification.id}
-                        style={[
-                            styles.notificationCard,
-                            !notification.isRead && styles.notificationUnread
-                        ]}
-                        activeOpacity={0.7}
-                    >
-                        {/* Indicateur non lu */}
-                        {!notification.isRead && <View style={styles.unreadDot} />}
-
-                        {/* Image ou Icône */}
-                        {notification.imageUrl ? (
-                            <Image source={{ uri: notification.imageUrl }} style={styles.notificationImage} />
-                        ) : (
-                            <View style={styles.notificationIcon}>
-                                <MaterialIcons
-                                    name={notification.icon as any}
-                                    size={24}
-                                    color="#f2d00d"
-                                />
-                            </View>
-                        )}
-
-                        {/* Contenu */}
-                        <View style={styles.notificationContent}>
-                            <Text style={styles.notificationTitle}>{notification.title}</Text>
-                            <Text style={styles.notificationMessage} numberOfLines={2}>
-                                {notification.message}
-                            </Text>
-                            <Text style={styles.notificationTime}>{notification.time}</Text>
-                        </View>
-
-                        {/* Action */}
-                        <TouchableOpacity style={styles.moreButton}>
-                            <MaterialIcons name="more-vert" size={20} color="rgba(255,255,255,0.4)" />
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                ))}
-
-                {/* Fin des notifications */}
-                <View style={styles.endMessage}>
-                    <MaterialIcons name="check-circle" size={48} color="rgba(242, 208, 13, 0.3)" />
-                    <Text style={styles.endMessageText}>Vous êtes à jour !</Text>
+            {loading ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#f2d00d" />
                 </View>
-            </ScrollView>
+            ) : (
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {notifications.length === 0 ? (
+                        <View style={styles.endMessage}>
+                            <MaterialIcons name="notifications-none" size={48} color="rgba(255,255,255,0.2)" />
+                            <Text style={styles.endMessageText}>Aucune notification</Text>
+                        </View>
+                    ) : (
+                        notifications.map((notification) => (
+                            <TouchableOpacity
+                                key={notification.id}
+                                style={[
+                                    styles.notificationCard,
+                                    (!notification.read_at && !notification.isRead) && styles.notificationUnread
+                                ]}
+                                activeOpacity={0.7}
+                                onPress={() => handleMarkAsRead(notification.id)}
+                            >
+                                {/* Indicateur non lu */}
+                                {(!notification.read_at && !notification.isRead) && <View style={styles.unreadDot} />}
+
+                                {/* Image ou Icône */}
+                                {notification.image_url ? (
+                                    <Image source={{ uri: notification.image_url }} style={styles.notificationImage} />
+                                ) : (
+                                    <View style={styles.notificationIcon}>
+                                        <MaterialIcons
+                                            name={notification.data?.icon || 'notifications'}
+                                            size={24}
+                                            color="#f2d00d"
+                                        />
+                                    </View>
+                                )}
+
+                                {/* Contenu */}
+                                <View style={styles.notificationContent}>
+                                    <Text style={styles.notificationTitle}>{notification.data?.title || notification.title || 'Notification'}</Text>
+                                    <Text style={styles.notificationMessage} numberOfLines={2}>
+                                        {notification.data?.message || notification.message || ''}
+                                    </Text>
+                                    <Text style={styles.notificationTime}>{notification.created_at_human || 'Récemment'}</Text>
+                                </View>
+
+                                {/* Action */}
+                                <TouchableOpacity style={styles.moreButton}>
+                                    <MaterialIcons name="more-vert" size={20} color="rgba(255,255,255,0.4)" />
+                                </TouchableOpacity>
+                            </TouchableOpacity>
+                        ))
+                    )}
+
+                    {notifications.length > 0 && (
+                        <View style={styles.endMessage}>
+                            <MaterialIcons name="check-circle" size={48} color="rgba(242, 208, 13, 0.3)" />
+                            <Text style={styles.endMessageText}>Vous êtes à jour !</Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
         </View>
     );
 }

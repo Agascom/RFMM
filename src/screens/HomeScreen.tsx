@@ -15,14 +15,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { booksService, coachingService, newsService } from '../services/api';
 import { Book, CoachingProgram, News } from '../types/api';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
-
-// Données mock pour l'utilisateur (sera remplacé par authService plus tard)
-const userData = {
-    name: 'Utilisateur',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDIAWhjEs9kf5ijzyZiuwXASXSFOwjxLkFIWWyRq44JP5TewkzTyv6_8MVudSGlRrpkQpZSMY-wNpWr5URxnA8y9hBUpuVph4nyf1iwI5Ky5nLOyg2Pt2VG7IvosgJqGqlvfRTMjYfvt6gFBTlK6o_wMvi1eldqwVBWRtRfo1n9aNh1yCMdmO4N3odRoJJj0OwCc6rAMx_XmB8RewRlnlrXu07iOqDbF4fSF9hMc8_qoVw9zlKFOBmzrUUdQPoeOu1j2nOXnTbrJutk',
-};
 
 const nowPlaying = {
     title: 'Le Chemin de la Grâce',
@@ -32,6 +27,8 @@ const nowPlaying = {
 
 export default function HomeScreen() {
     const navigation = useNavigation<any>();
+    const { user } = useAuth();
+
     const [loading, setLoading] = useState(true);
     const [news, setNews] = useState<News[]>([]);
     const [newBooks, setNewBooks] = useState<Book[]>([]);
@@ -97,6 +94,12 @@ export default function HomeScreen() {
         );
     }
 
+    // Fallback user data
+    const displayUser = {
+        name: user?.name || 'Visiteur',
+        avatarUrl: user?.avatar_url || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDIAWhjEs9kf5ijzyZiuwXASXSFOwjxLkFIWWyRq44JP5TewkzTyv6_8MVudSGlRrpkQpZSMY-wNpWr5URxnA8y9hBUpuVph4nyf1iwI5Ky5nLOyg2Pt2VG7IvosgJqGqlvfRTMjYfvt6gFBTlK6o_wMvi1eldqwVBWRtRfo1n9aNh1yCMdmO4N3odRoJJj0OwCc6rAMx_XmB8RewRlnlrXu07iOqDbF4fSF9hMc8_qoVw9zlKFOBmzrUUdQPoeOu1j2nOXnTbrJutk'
+    };
+
     return (
         <View style={styles.container}>
             <ScrollView
@@ -107,10 +110,10 @@ export default function HomeScreen() {
                 {/* Barre du haut */}
                 <View style={styles.topBar}>
                     <View style={styles.userInfo}>
-                        <Image source={{ uri: userData.avatarUrl }} style={styles.avatar} />
+                        <Image source={{ uri: displayUser.avatarUrl }} style={styles.avatar} />
                         <View style={{ marginLeft: 12 }}>
                             <Text style={styles.welcomeText}>BON RETOUR</Text>
-                            <Text style={styles.userName}>Bonjour, {userData.name}</Text>
+                            <Text style={styles.userName}>Bonjour, {displayUser.name}</Text>
                         </View>
                     </View>
                     <View style={styles.iconRow}>

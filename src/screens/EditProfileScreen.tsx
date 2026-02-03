@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -10,29 +10,64 @@ import {
     Modal,
     Pressable,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { authService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function EditProfileScreen() {
     const navigation = useNavigation<any>();
+    const { user, updateUser } = useAuth();
 
-    const [name, setName] = useState('Daniel Kouassi');
-    const [email, setEmail] = useState('daniel.k@email.com');
-    const [phone, setPhone] = useState('+225 07 00 00 00');
-    const [bio, setBio] = useState('Passionné par la Parole de Dieu et le développement personnel.');
+    const [name, setName] = useState(user?.name || '');
+    const [email, setEmail] = useState(user?.email || '');
+    const [phone, setPhone] = useState(user?.phone || '');
+    const [bio, setBio] = useState(user?.bio || '');
+    const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDIAWhjEs9kf5ijzyZiuwXASXSFOwjxLkFIWWyRq44JP5TewkzTyv6_8MVudSGlRrpkQpZSMY-wNpWr5URxnA8y9hBUpuVph4nyf1iwI5Ky5nLOyg2Pt2VG7IvosgJqGqlvfRTMjYfvt6gFBTlK6o_wMvi1eldqwVBWRtRfo1n9aNh1yCMdmO4N3odRoJJj0OwCc6rAMx_XmB8RewRlnlrXu07iOqDbF4fSF9hMc8_qoVw9zlKFOBmzrUUdQPoeOu1j2nOXnTbrJutk');
 
+    const [loading, setLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [avatarUrl, setAvatarUrl] = useState('https://lh3.googleusercontent.com/aida-public/AB6AXuDIAWhjEs9kf5ijzyZiuwXASXSFOwjxLkFIWWyRq44JP5TewkzTyv6_8MVudSGlRrpkQpZSMY-wNpWr5URxnA8y9hBUpuVph4nyf1iwI5Ky5nLOyg2Pt2VG7IvosgJqGqlvfRTMjYfvt6gFBTlK6o_wMvi1eldqwVBWRtRfo1n9aNh1yCMdmO4N3odRoJJj0OwCc6rAMx_XmB8RewRlnlrXu07iOqDbF4fSF9hMc8_qoVw9zlKFOBmzrUUdQPoeOu1j2nOXnTbrJutk');
 
-    const handleSave = () => {
-        // Simuler la sauvegarde
-        setShowSuccessModal(true);
+    useEffect(() => {
+        if (user) {
+            setName(user.name);
+            setEmail(user.email);
+            setPhone(user.phone || '');
+            setBio(user.bio || '');
+            if (user.avatar_url) setAvatarUrl(user.avatar_url);
+        }
+    }, [user]);
+
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+            const response = await authService.updateProfile({ // on assume que updateProfile existe et retourne le user mis à jour
+                name,
+                // email, // Généralement on évite de changer l'email sans process de verif spécifique, mais on le laisse si l'API le permet
+                phone,
+                bio
+            });
+
+            if (response.success) {
+                updateUser(response.data);
+                setShowSuccessModal(true);
+            } else {
+                Alert.alert('Erreur', 'Impossible de mettre à jour le profil');
+            }
+        } catch (error: any) {
+            console.error(error);
+            Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleChangePhoto = () => {
-        // TODO: Implémenter la sélection de photo
+        Alert.alert('Info', 'Le changement de photo sera bientôt disponible');
     };
 
     return (
@@ -81,8 +116,12 @@ export default function EditProfileScreen() {
                     <MaterialIcons name="close" size={24} color="white" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Modifier le profil</Text>
-                <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                    <Text style={styles.saveButtonText}>Enregistrer</Text>
+                <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={loading}>
+                    {loading ? (
+                        <ActivityIndicator size="small" color="#f2d00d" />
+                    ) : (
+                        <Text style={styles.saveButtonText}>Enregistrer</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -121,10 +160,10 @@ export default function EditProfileScreen() {
                         </View>
                     </View>
 
-                    {/* Email */}
+                    {/* Email (Lecture seule souvent) */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Adresse email</Text>
-                        <View style={styles.inputWrapper}>
+                        <View style={[styles.inputWrapper, { opacity: 0.5 }]}>
                             <MaterialIcons name="email" size={20} color="rgba(255,255,255,0.4)" />
                             <TextInput
                                 style={styles.input}
@@ -134,6 +173,7 @@ export default function EditProfileScreen() {
                                 placeholderTextColor="rgba(255,255,255,0.3)"
                                 keyboardType="email-address"
                                 autoCapitalize="none"
+                                editable={false}
                             />
                         </View>
                     </View>
@@ -187,8 +227,12 @@ export default function EditProfileScreen() {
                 </View>
 
                 {/* Bouton Enregistrer */}
-                <TouchableOpacity style={styles.primaryButton} onPress={handleSave}>
-                    <Text style={styles.primaryButtonText}>Enregistrer les modifications</Text>
+                <TouchableOpacity style={styles.primaryButton} onPress={handleSave} disabled={loading}>
+                    {loading ? (
+                        <ActivityIndicator color="#221f10" />
+                    ) : (
+                        <Text style={styles.primaryButtonText}>Enregistrer les modifications</Text>
+                    )}
                 </TouchableOpacity>
 
                 {/* Supprimer le compte */}

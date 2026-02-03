@@ -14,9 +14,11 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { authService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen() {
     const navigation = useNavigation<any>();
+    const { login } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -46,7 +48,9 @@ export default function LoginScreen() {
             }
 
             if (response.success) {
-                // Rediriger vers l'app principale
+                // Mise à jour du contexte et navigation
+                // Note: AuthResponse data est { user: User, token: string }
+                await login(response.data.token, response.data.user);
                 navigation.replace('Tabs');
             } else {
                 Alert.alert('Erreur', response.message || 'Une erreur est survenue');

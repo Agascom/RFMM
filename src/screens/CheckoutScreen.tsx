@@ -5,25 +5,62 @@ import {
     Image,
     TouchableOpacity,
     ScrollView,
-    StyleSheet
+    StyleSheet,
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { orderService } from '../services/api';
 
-const product = {
+const mockProduct = {
+    id: '1',
     title: 'Marcher dans la Foi',
-    type: 'E-book par Pasteur Francis',
+    type: 'ebook',
+    author: 'Pasteur Francis',
     price: 5000,
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC65_rrcQgI7Gg6AFnG2ElqYdwOVh0f5oNsF1AJN41YiG0mqXmO8VPWwV5uz1IUuqHXItOiFyfNFuZW1N8k6IWXSIhvRYKANNpVjeYTOJl5WkHmIdOg1WoJrs59x1CncjT-UQMC5iH89RupyrYRiCKDvxSp6xOh9myp82edUdn1peA-QDdCTTUmUxURjoniO_5G3y9pxL-w2qyRQ-tUMkGeYJNNaRpEjNVrPeHl57Y3WBr_BNPXkJJIcWZbiPoqdOB3oGgUW5p9OcEe',
+    cover_image_url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC65_rrcQgI7Gg6AFnG2ElqYdwOVh0f5oNsF1AJN41YiG0mqXmO8VPWwV5uz1IUuqHXItOiFyfNFuZW1N8k6IWXSIhvRYKANNpVjeYTOJl5WkHmIdOg1WoJrs59x1CncjT-UQMC5iH89RupyrYRiCKDvxSp6xOh9myp82edUdn1peA-QDdCTTUmUxURjoniO_5G3y9pxL-w2qyRQ-tUMkGeYJNNaRpEjNVrPeHl57Y3WBr_BNPXkJJIcWZbiPoqdOB3oGgUW5p9OcEe',
 };
 
-const formatPrice = (price: number) => {
-    return price.toLocaleString('fr-FR') + ' FCFA';
+const formatPrice = (price?: number) => {
+    return (price || 0).toLocaleString('fr-FR') + ' FCFA';
 };
 
 export default function CheckoutScreen() {
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    // On récupère le produit passé en paramètre, sinon mock
+    const product = route.params?.product || mockProduct;
+
     const [selectedMethod, setSelectedMethod] = useState<'airtel' | 'moov' | 'card'>('airtel');
+    const [loading, setLoading] = useState(false);
+
+    const handlePayment = async () => {
+        try {
+            setLoading(true);
+            const response = await orderService.createOrder([{ id: product.id, type: product.type }]);
+
+            if (response.success) {
+                Alert.alert(
+                    'Paiement Réussi',
+                    'Félicitations ! Votre achat a été validé. Vous pouvez maintenant accéder à votre contenu.',
+                    [
+                        {
+                            text: 'Voir ma bibliothèque',
+                            onPress: () => navigation.navigate('Ma Biblio')
+                        }
+                    ]
+                );
+            } else {
+                Alert.alert('Erreur', 'Le paiement a échoué. Veuillez réessayer.');
+            }
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Erreur', 'Une erreur est survenue lors du paiement.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -50,12 +87,14 @@ export default function CheckoutScreen() {
                         <View style={styles.orderInfo}>
                             <Text style={styles.orderLabel}>ACHAT</Text>
                             <Text style={styles.orderTitle}>{product.title}</Text>
-                            <Text style={styles.orderType}>{product.type}</Text>
+                            <Text style={styles.orderType}>
+                                {product.type === 'ebook' ? 'Livre Numérique' : product.type === 'audiobook' ? 'Livre Audio' : 'Coaching'}
+                            </Text>
                             <View style={styles.priceTag}>
                                 <Text style={styles.priceText}>{formatPrice(product.price)}</Text>
                             </View>
                         </View>
-                        <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
+                        <Image source={{ uri: product.cover_image_url || product.imageUrl }} style={styles.productImage} />
                     </View>
                 </View>
 
@@ -101,17 +140,17 @@ export default function CheckoutScreen() {
                             {selectedMethod === 'moov' && <View style={styles.radioInner} />}
                         </View>
                         <View style={styles.paymentInfo}>
-                            <View style={[styles.paymentIconWrapper, { backgroundColor: 'rgba(0, 128, 255, 0.1)' }]}>
-                                <MaterialIcons name="phone-android" size={24} color="#0080ff" />
+                            <View style={[styles.paymentIconWrapper, { backgroundColor: 'rgba(0,100,255,0.1)' }]}>
+                                <MaterialIcons name="phone-android" size={24} color="#0066ff" />
                             </View>
                             <View style={{ marginLeft: 12 }}>
                                 <Text style={styles.paymentName}>Moov Money</Text>
-                                <Text style={styles.paymentDesc}>Payez avec votre portefeuille Moov</Text>
+                                <Text style={styles.paymentDesc}>transaction simple via Moov</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
 
-                    {/* Carte */}
+                    {/* Carte Bancaire */}
                     <TouchableOpacity
                         onPress={() => setSelectedMethod('card')}
                         style={[
@@ -124,34 +163,42 @@ export default function CheckoutScreen() {
                             {selectedMethod === 'card' && <View style={styles.radioInner} />}
                         </View>
                         <View style={styles.paymentInfo}>
-                            <View style={[styles.paymentIconWrapper, { backgroundColor: 'rgba(242, 208, 13, 0.1)' }]}>
-                                <MaterialIcons name="credit-card" size={24} color="#f2d00d" />
+                            <View style={[styles.paymentIconWrapper, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                                <MaterialIcons name="credit-card" size={24} color="white" />
                             </View>
                             <View style={{ marginLeft: 12 }}>
-                                <Text style={styles.paymentName}>Visa / Mastercard</Text>
-                                <Text style={styles.paymentDesc}>Carte de crédit ou débit</Text>
+                                <Text style={styles.paymentName}>Carte Bancaire</Text>
+                                <Text style={styles.paymentDesc}>Visa, Mastercard</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
                 </View>
 
-                {/* Note de sécurité */}
-                <View style={styles.securityNote}>
-                    <MaterialIcons name="security" size={20} color="#f2d00d" />
-                    <Text style={styles.securityText}>
-                        Votre transaction est sécurisée par un cryptage SSL 256 bits pour votre sécurité.
-                    </Text>
+                {/* Total */}
+                <View style={styles.totalSection}>
+                    <Text style={styles.totalLabel}>Total à payer</Text>
+                    <Text style={styles.totalAmount}>{formatPrice(product.price)}</Text>
                 </View>
+
+                {/* Disclaimer */}
+                <Text style={styles.disclaimer}>
+                    En validant votre commande, vous acceptez nos conditions générales de vente.
+                    Les produits numériques ne sont pas remboursables une fois téléchargés.
+                </Text>
             </ScrollView>
 
-            {/* Pied de page */}
+            {/* Bouton Payer */}
             <View style={styles.footer}>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Prix Total</Text>
-                    <Text style={styles.totalPrice}>{formatPrice(product.price)}</Text>
-                </View>
-                <TouchableOpacity style={styles.confirmButton} activeOpacity={0.8}>
-                    <Text style={styles.confirmButtonText}>CONFIRMER LE PAIEMENT</Text>
+                <TouchableOpacity
+                    style={styles.payButton}
+                    onPress={handlePayment}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#221f10" />
+                    ) : (
+                        <Text style={styles.payButtonText}>PAYER MAINTENANT</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>
@@ -166,6 +213,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingTop: 48,
         paddingBottom: 16,
@@ -177,14 +225,11 @@ const styles = StyleSheet.create({
         height: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 20,
     },
     headerTitle: {
+        color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
-        flex: 1,
-        textAlign: 'center',
-        color: 'white',
     },
     scrollView: {
         flex: 1,
@@ -192,190 +237,172 @@ const styles = StyleSheet.create({
     sectionHeader: {
         paddingHorizontal: 16,
         paddingTop: 24,
-        paddingBottom: 12,
+        paddingBottom: 16,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
         color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+        letterSpacing: 1,
     },
     orderCard: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        marginHorizontal: 16,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        overflow: 'hidden',
     },
     orderCardInner: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.05)',
         padding: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
     },
     orderInfo: {
         flex: 1,
-        justifyContent: 'space-between',
-        paddingVertical: 4,
-        marginRight: 16,
+        justifyContent: 'center',
     },
     orderLabel: {
-        fontSize: 11,
-        fontWeight: '600',
+        color: '#f2d00d',
+        fontSize: 10,
+        fontWeight: 'bold',
+        marginBottom: 8,
         letterSpacing: 1,
-        color: 'rgba(255,255,255,0.5)',
-        marginBottom: 4,
     },
     orderTitle: {
+        color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
-        color: 'white',
+        marginBottom: 4,
     },
     orderType: {
+        color: 'rgba(255,255,255,0.6)',
         fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
-        marginTop: 4,
+        marginBottom: 16,
     },
     priceTag: {
-        backgroundColor: 'rgba(242, 208, 13, 0.2)',
+        backgroundColor: 'rgba(242, 208, 13, 0.15)',
         alignSelf: 'flex-start',
-        paddingHorizontal: 14,
+        paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 20,
-        marginTop: 12,
+        borderRadius: 8,
     },
     priceText: {
         color: '#f2d00d',
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 16,
     },
     productImage: {
         width: 100,
         height: 140,
-        borderRadius: 12,
-        backgroundColor: '#333',
+        borderRadius: 8,
+        marginLeft: 16,
+        backgroundColor: '#1a180d',
     },
     paymentMethods: {
         paddingHorizontal: 16,
-        marginTop: 8,
     },
     paymentOption: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 16,
-        borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.1)',
         padding: 16,
+        backgroundColor: 'rgba(255,255,255,0.03)',
         marginBottom: 12,
-        backgroundColor: 'rgba(255,255,255,0.02)',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     paymentOptionActive: {
         borderColor: '#f2d00d',
         backgroundColor: 'rgba(242, 208, 13, 0.05)',
     },
     radioButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
         borderWidth: 2,
         borderColor: 'rgba(255,255,255,0.3)',
         alignItems: 'center',
         justifyContent: 'center',
+        marginRight: 16,
     },
     radioButtonActive: {
         borderColor: '#f2d00d',
     },
     radioInner: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
         backgroundColor: '#f2d00d',
     },
     paymentInfo: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: 16,
     },
     paymentIconWrapper: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(255,50,50,0.1)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     paymentName: {
-        fontSize: 15,
-        fontWeight: '600',
         color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     paymentDesc: {
+        color: 'rgba(255,255,255,0.5)',
         fontSize: 12,
-        color: 'rgba(255,255,255,0.4)',
         marginTop: 2,
     },
-    securityNote: {
-        marginHorizontal: 16,
-        padding: 16,
-        marginTop: 8,
-        backgroundColor: 'rgba(242, 208, 13, 0.05)',
-        borderRadius: 12,
+    totalSection: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(242, 208, 13, 0.1)',
+        paddingHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 16,
     },
-    securityText: {
+    totalLabel: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 16,
+    },
+    totalAmount: {
+        color: 'white',
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    disclaimer: {
+        marginHorizontal: 16,
+        color: 'rgba(255,255,255,0.4)',
         fontSize: 12,
-        color: 'rgba(255,255,255,0.5)',
-        flex: 1,
-        marginLeft: 12,
+        textAlign: 'center',
         lineHeight: 18,
     },
     footer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(34, 31, 16, 0.98)',
         padding: 16,
-        paddingBottom: 32,
         borderTopWidth: 1,
         borderTopColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: '#221f10',
     },
-    totalRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-        paddingHorizontal: 8,
-    },
-    totalLabel: {
-        color: 'rgba(255,255,255,0.5)',
-        fontWeight: '500',
-        fontSize: 15,
-    },
-    totalPrice: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-    confirmButton: {
-        width: '100%',
+    payButton: {
         backgroundColor: '#f2d00d',
-        paddingVertical: 18,
+        paddingVertical: 16,
         borderRadius: 30,
         alignItems: 'center',
+        justifyContent: 'center',
         shadowColor: '#f2d00d',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 12,
+        shadowRadius: 10,
         elevation: 6,
     },
-    confirmButtonText: {
+    payButtonText: {
         color: '#221f10',
-        fontWeight: 'bold',
         fontSize: 16,
-        letterSpacing: 1,
+        fontWeight: 'bold',
+        letterSpacing: 2,
     },
 });

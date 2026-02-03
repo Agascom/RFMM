@@ -72,6 +72,11 @@ export const authService = {
     async getUser(): Promise<SingleResponse<User>> {
         const response = await api.get<SingleResponse<User>>('/user');
         return response.data;
+    },
+
+    async updateProfile(data: Partial<User>): Promise<SingleResponse<User>> {
+        const response = await api.put<SingleResponse<User>>('/user/profile', data);
+        return response.data;
     }
 };
 
@@ -129,6 +134,37 @@ export const libraryService = {
 
     async getCompleted(): Promise<PaginatedResponse<Book | CoachingProgram>> {
         const response = await api.get<PaginatedResponse<Book | CoachingProgram>>('/library/completed');
+        return response.data;
+    }
+};
+
+export const searchService = {
+    async search(query: string): Promise<{ books: Book[], coaching: CoachingProgram[], news: News[] }> {
+        const response = await api.get('/search', { params: { query } });
+        return response.data;
+    }
+};
+
+export const notificationService = {
+    async getAll(): Promise<any[]> { // Typage faible pour l'instant
+        const response = await api.get('/notifications');
+        return response.data.data;
+    },
+
+    async markAsRead(id: string): Promise<void> {
+        await api.post(`/notifications/${id}/read`);
+    }
+};
+
+export const playerService = {
+    async updateProgress(id: string, progress: number, type: 'book' | 'coaching'): Promise<void> {
+        await api.post('/player/progress', { id, progress, type });
+    }
+};
+
+export const orderService = {
+    async createOrder(items: { id: string, type: 'book' | 'coaching' }[]): Promise<{ success: boolean; order_id: string; payment_url?: string }> {
+        const response = await api.post('/orders', { items });
         return response.data;
     }
 };

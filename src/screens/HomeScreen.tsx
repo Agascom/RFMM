@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,62 +8,21 @@ import {
     ImageBackground,
     FlatList,
     StyleSheet,
-    Dimensions
+    Dimensions,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { booksService, coachingService, newsService } from '../services/api';
+import { Book, CoachingProgram, News } from '../types/api';
 
 const { width } = Dimensions.get('window');
 
-// Données mock
+// Données mock pour l'utilisateur (sera remplacé par authService plus tard)
 const userData = {
-    name: 'Daniel',
+    name: 'Utilisateur',
     avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDIAWhjEs9kf5ijzyZiuwXASXSFOwjxLkFIWWyRq44JP5TewkzTyv6_8MVudSGlRrpkQpZSMY-wNpWr5URxnA8y9hBUpuVph4nyf1iwI5Ky5nLOyg2Pt2VG7IvosgJqGqlvfRTMjYfvt6gFBTlK6o_wMvi1eldqwVBWRtRfo1n9aNh1yCMdmO4N3odRoJJj0OwCc6rAMx_XmB8RewRlnlrXu07iOqDbF4fSF9hMc8_qoVw9zlKFOBmzrUUdQPoeOu1j2nOXnTbrJutk',
 };
-
-const featuredEvent = {
-    title: 'Sommet Annuel de la Sagesse 2024',
-    description: 'Rejoignez Pasteur Francis ce dimanche pour une expérience transformatrice.',
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB36N9ekSw9Ze_FxQ9_GI78hQ4OaRfKVZ53zKnKsglZKNsGo1pS0C1g-rliqbTiTIudSyDFUje0_B-ugf-zXpuKiTJ_lWvcdZBdWCprGtpQdBPmnC0RaPwsWudCrpjbYujb0Ol-KM-mBk4p-qIYqZLogNCIvbVhg8XcQl7XTTTYTqpV93FM0pGkLq-opuDf-MOENAS3WJMudgcWnJa1n0Au5Zk7MP7ZvRnh3bHqq4eHmMdC-mgd0mSPLLuMeYTP_Kd3Z_4wlIVoR8gb',
-};
-
-const podcasts = [
-    {
-        id: '1',
-        title: 'Le Chemin de la Grâce',
-        episodeNumber: 42,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAk_P96jDVIlRGcwtDeWuAOwJYUlNH5eP85VmkDZov9NnDTzvtwBRFXQmG8KeR0mClBTAWUfwczdA1W4rrfs_or3v9W2n-IiSuJx6nPQg95hioWEB88fl_yRU97BJcsWFJzc4m65MA4ctYs-6BqT-0l19OLx2mNlmbOA2bnreEo5wqNMgEwZXZ6Va_8wIb3Bes3knDAjwe-OwgMl_-W0W4jniFlJR7GHTPlzD44Viys6aYOkjMfBqMpgar9SJyZcTUe0MAptwpC2ujF',
-    },
-    {
-        id: '2',
-        title: 'La Paix Intérieure',
-        episodeNumber: 15,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBfKNyvZxVCceSH1_w0YHwYqXg13l_xgpIut6zqnKmwsz_N7TVjJiGun-nIeH4scRV7F8eCIMOMW5WwUjnhA9suDx3LlntsNqmYOjZvuJugt_Z_TBwl2GHUaEpMv81z3xZt_t-oFBh6OBuzjCCh7MaFK_nNo7BI2kuuzZQB9748XW3vXImy4bYoGH0Eqb0z55OlPV9M1I-1Oa6gbiwrI_FPLG2tMHYbdWGT-AsE5NO9CWd1yZF9_UmhnGiO3Pp2tCwKt93SZsF63wtx',
-    },
-    {
-        id: '3',
-        title: 'Dévotion Quotidienne',
-        episodeNumber: 102,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAPZ1urFQMpFgEXXE2GB2TMW5KaPzBTQ3B_YVmP7xEtngDx9_1K_ahD0js5_SsA-1ETkkjoK8fuW_1xVp1c2Si156yhIHSKxjYU4Qj9SEJkSpLkD3egaPtSD290RUZ6jGMcmzumqd9Ab308TUQYex-dKALuzweKhmBNURjEQtG985tQawMGHX8AAPLRipGY51sJAA3295BGj5IalVpUJ6CMMmQL3XK-uL_qr1pP3rH9dJYD5Rr1LDosjP945VEVG6WruGyUhW8yAj7w',
-    },
-];
-
-const coachingSessions = [
-    {
-        id: '1',
-        category: 'Maîtrise Mentale',
-        title: 'Gérer l\'Incertitude',
-        progress: 65,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAhSOu10N9ERlhJYg2HQKt_D8a0fMnP9bFVBJV7TtAviK99OGvZAQcYIP0cZVR-7HrN_Ju0wvN0cmISOOV0w_d-TqdqZWuaR3mpxZGDrm5aRFJT6QEtjhHFB0w4u8Rv_EajIb3mSscBKDdtSxvlfFfpkcOnyRvTQ5Aul8wbSQFAzMiv-ARedBTOINs6a47NE3aoIoeVAuxELXz-SGjN-OaXHO2ZtZxh_ZQy2uivotWDF5ZikVCHjnB_yOIwI39jYxeOxouJbcUnyIhL',
-    },
-    {
-        id: '2',
-        category: 'Leadership',
-        title: 'Diriger avec Compassion',
-        progress: 0,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDejsiP8_uNtv-Rn_EcpGuLEMi37W1xYMaryYHyVZ4LHMNzP1Z-9DgO9_46ywD_EiRoNYzzo3BgwWZ4br9BGMx2D9E_SnKeukIQaTA__QTp5H2EUJxbyY1M_d8MIReqvDJlMawxtAE_Cv4k0wuKguMaDyzxwqNSNoFMHmX8Z4o5B4gq2urHVHAjHh_dVFMBml9SS0qOp9Ek52cXypEBgkBqpetVQ6Mi7cj6ZzUO-eOkuFvKkmcDckhIrYsqIy1F8jvvx5YhlK_0HWl_',
-    },
-];
 
 const nowPlaying = {
     title: 'Le Chemin de la Grâce',
@@ -73,6 +32,70 @@ const nowPlaying = {
 
 export default function HomeScreen() {
     const navigation = useNavigation<any>();
+    const [loading, setLoading] = useState(true);
+    const [news, setNews] = useState<News[]>([]);
+    const [newBooks, setNewBooks] = useState<Book[]>([]);
+    const [coachingPrograms, setCoachingPrograms] = useState<CoachingProgram[]>([]);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const [newsRes, booksRes, coachingRes] = await Promise.all([
+                newsService.getNews(),
+                booksService.getBooks({ page: 1 }),
+                coachingService.getPrograms()
+            ]);
+
+            if (newsRes.success) setNews(newsRes.data);
+            if (booksRes.success) setNewBooks(booksRes.data.slice(0, 5));
+            if (coachingRes.success) setCoachingPrograms(coachingRes.data.slice(0, 5));
+        } catch (error) {
+            console.error('Erreur chargement home:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const renderEvents = () => {
+        if (news.length === 0) return null;
+        const featuredNews = news[0];
+
+        return (
+            <TouchableOpacity
+                style={styles.eventCard}
+                onPress={() => navigation.navigate('NewsDetail', { newsId: featuredNews.id })}
+                activeOpacity={0.9}
+            >
+                <ImageBackground
+                    source={{ uri: featuredNews.image_url }}
+                    style={styles.eventImage}
+                    imageStyle={{ borderRadius: 16 }}
+                >
+                    <View style={styles.eventOverlay}>
+                        <View style={styles.eventBadge}>
+                            <Text style={styles.eventBadgeText}>À LA UNE</Text>
+                        </View>
+                        <Text style={styles.eventTitle}>{featuredNews.title}</Text>
+                        <Text style={styles.eventDescription} numberOfLines={2}>
+                            {featuredNews.excerpt}
+                        </Text>
+                    </View>
+                </ImageBackground>
+            </TouchableOpacity>
+        );
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color="#f2d00d" />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -91,81 +114,22 @@ export default function HomeScreen() {
                         </View>
                     </View>
                     <View style={styles.iconRow}>
-                        <TouchableOpacity style={styles.iconButton}>
+                        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Search')}>
                             <MaterialIcons name="search" size={24} color="#f2d00d" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.iconButton, { marginLeft: 8 }]}>
+                        <TouchableOpacity
+                            style={[styles.iconButton, { marginLeft: 8 }]}
+                            onPress={() => navigation.navigate('Notifications')}
+                        >
                             <MaterialIcons name="notifications" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Événement en vedette */}
-                <View style={styles.heroSection}>
-                    <TouchableOpacity
-                        activeOpacity={0.9}
-                        onPress={() => navigation.navigate('NewsDetail')}
-                        style={styles.heroCard}
-                    >
-                        <ImageBackground
-                            source={{ uri: featuredEvent.imageUrl }}
-                            style={styles.heroImage}
-                            imageStyle={{ borderRadius: 16 }}
-                        >
-                            <View style={styles.heroOverlay} />
-                            <View style={styles.heroContent}>
-                                <View style={styles.liveTag}>
-                                    <Text style={styles.liveTagText}>EN DIRECT</Text>
-                                </View>
-                                <Text style={styles.heroTitle}>{featuredEvent.title}</Text>
-                                <Text style={styles.heroDescription}>{featuredEvent.description}</Text>
-                                <TouchableOpacity style={styles.registerButton}>
-                                    <Text style={styles.registerButtonText}>S'inscrire</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </ImageBackground>
-                    </TouchableOpacity>
-                </View>
+                {/* Événement en vedette (News) */}
+                {renderEvents()}
 
-                {/* En-tête Podcasts */}
-                <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleWrapper}>
-                        <Text style={styles.sectionTitle}>Podcasts à la Une</Text>
-                    </View>
-                    <TouchableOpacity>
-                        <Text style={styles.seeAllText}>VOIR TOUT</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Carrousel Podcasts */}
-                <FlatList
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    data={podcasts}
-                    contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
-                    keyExtractor={item => item.id}
-                    ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity
-                            style={styles.podcastCard}
-                            onPress={() => navigation.navigate('Player')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={styles.podcastImageWrapper}>
-                                <Image source={{ uri: item.imageUrl }} style={styles.podcastImage} />
-                                <View style={styles.playButton}>
-                                    <MaterialIcons name="play-arrow" size={24} color="black" />
-                                </View>
-                            </View>
-                            <View style={{ marginTop: 12 }}>
-                                <Text style={styles.podcastTitle} numberOfLines={1}>{item.title}</Text>
-                                <Text style={styles.podcastEpisode}>ÉPISODE {item.episodeNumber}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                />
-
-                {/* Grille d'accès rapide */}
+                {/* Accès Rapide */}
                 <View style={styles.quickAccessContainer}>
                     <TouchableOpacity
                         style={styles.quickAccessCard}
@@ -173,11 +137,11 @@ export default function HomeScreen() {
                         activeOpacity={0.7}
                     >
                         <View style={styles.quickAccessIcon}>
-                            <MaterialIcons name="auto-stories" size={24} color="#f2d00d" />
+                            <MaterialIcons name="store" size={24} color="#221f10" />
                         </View>
                         <View style={{ marginLeft: 12 }}>
-                            <Text style={styles.quickAccessTitle}>E-Books</Text>
-                            <Text style={styles.quickAccessSubtitle}>12 Nouveautés</Text>
+                            <Text style={styles.quickAccessTitle}>Librairie</Text>
+                            <Text style={styles.quickAccessSubtitle}>{newBooks.length} Nouveautés</Text>
                         </View>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -190,53 +154,103 @@ export default function HomeScreen() {
                         </View>
                         <View style={{ marginLeft: 12 }}>
                             <Text style={styles.quickAccessTitle}>Livres Audio</Text>
-                            <Text style={styles.quickAccessSubtitle}>6 Pistes</Text>
+                            <Text style={styles.quickAccessSubtitle}>Ma collection</Text>
                         </View>
                     </TouchableOpacity>
                 </View>
 
                 {/* En-tête Sessions de Coaching */}
-                <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleWrapper}>
-                        <Text style={styles.sectionTitle}>Sessions de Coaching</Text>
+                {coachingPrograms.length > 0 && (
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionTitleWrapper}>
+                            <Text style={styles.sectionTitle}>Sessions de Coaching</Text>
+                            <View style={styles.sectionUnderline} />
+                        </View>
+                        <TouchableOpacity onPress={() => navigation.navigate('Librairie')}>
+                            <Text style={styles.seeAllText}>Tout voir</Text>
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity>
-                        <Text style={styles.seeAllText}>VOIR PARCOURS</Text>
-                    </TouchableOpacity>
+                )}
+
+                {/* Liste Sessions de Coaching */}
+                <View>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingLeft: 16, paddingRight: 16 }}
+                    >
+                        {coachingPrograms.map((program, index) => (
+                            <TouchableOpacity
+                                key={program.id}
+                                style={[styles.coachingCard, index > 0 && { marginLeft: 16 }]}
+                                onPress={() => navigation.navigate('CoachingDetail', { programId: program.id })}
+                                activeOpacity={0.8}
+                            >
+                                <View style={styles.coachingImageWrapper}>
+                                    <Image source={{ uri: program.cover_image_url }} style={styles.coachingImage} />
+                                    <View style={styles.playButton}>
+                                        <MaterialIcons name="play-arrow" size={24} color="white" />
+                                    </View>
+                                </View>
+                                <View style={styles.coachingInfo}>
+                                    <Text style={styles.coachingCategory}>{program.category?.name || 'Coaching'}</Text>
+                                    <Text style={styles.coachingTitle} numberOfLines={2}>{program.title}</Text>
+                                    <View style={styles.progressBarBg}>
+                                        <View style={[styles.progressBarFill, { width: '0%' }]} />
+                                    </View>
+                                    <Text style={styles.progressText}>0% complété</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
 
-                {/* Liste des Sessions */}
-                <View style={styles.coachingContainer}>
-                    {coachingSessions.map((session, index) => (
+                {/* En-tête Nouveaux livres (ex-podcasts) */}
+                {newBooks.length > 0 && (
+                    <View style={[styles.sectionHeader, { marginTop: 32 }]}>
+                        <View style={styles.sectionTitleWrapper}>
+                            <Text style={styles.sectionTitle}>Derniers Ajouts</Text>
+                            <View style={styles.sectionUnderline} />
+                        </View>
+                    </View>
+                )}
+
+                {/* Liste Nouveaux Livres */}
+                <View>
+                    {newBooks.map((book) => (
                         <TouchableOpacity
-                            key={session.id}
-                            style={[styles.coachingCard, index > 0 && { marginTop: 16 }]}
-                            activeOpacity={0.7}
+                            key={book.id}
+                            style={styles.podcastItem}
+                            onPress={() => navigation.navigate('BookDetail', { bookId: book.id })}
                         >
-                            <Image source={{ uri: session.imageUrl }} style={styles.coachingImage} />
-                            <View style={styles.coachingInfo}>
-                                <Text style={styles.coachingCategory}>{session.category.toUpperCase()}</Text>
-                                <Text style={styles.coachingTitle}>{session.title}</Text>
-                                <View style={styles.progressContainer}>
-                                    <View style={styles.progressBar}>
-                                        <View style={[styles.progressFill, { width: `${session.progress}%` }]} />
-                                    </View>
-                                    <Text style={styles.progressText}>
-                                        {session.progress > 0 ? `${session.progress}%` : 'Nouveau'}
-                                    </Text>
+                            <Image source={{ uri: book.cover_image_url }} style={styles.podcastImage} />
+                            <View style={styles.podcastInfo}>
+                                <Text style={styles.podcastTitle}>{book.title}</Text>
+                                <Text style={styles.podcastSubtitle}>{book.author}</Text>
+                                <View style={styles.podcastMeta}>
+                                    <MaterialIcons name="access-time" size={14} color="gray" />
+                                    <Text style={styles.podcastDuration}>{book.duration || 'N/A'}</Text>
+                                    <View style={styles.bulletPoint} />
+                                    <Text style={styles.podcastEpisode}>{book.type === 'audiobook' ? 'Audio' : 'Ebook'}</Text>
                                 </View>
                             </View>
+                            <TouchableOpacity style={styles.actionButton}>
+                                <MaterialIcons name="file-download" size={24} color="rgba(255,255,255,0.6)" />
+                            </TouchableOpacity>
                         </TouchableOpacity>
                     ))}
                 </View>
             </ScrollView>
 
-            {/* Mini Lecteur */}
+            {/* Mini Player */}
             <TouchableOpacity
                 style={styles.miniPlayer}
                 onPress={() => navigation.navigate('Player')}
                 activeOpacity={0.9}
             >
+                <View style={styles.progressBarAbsolute}>
+                    <View style={{ width: '30%', height: '100%', backgroundColor: '#f2d00d' }} />
+                </View>
                 <Image source={{ uri: nowPlaying.imageUrl }} style={styles.miniPlayerImage} />
                 <View style={styles.miniPlayerInfo}>
                     <Text style={styles.miniPlayerTitle}>{nowPlaying.title}</Text>
@@ -244,10 +258,10 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.miniPlayerControls}>
                     <TouchableOpacity>
-                        <MaterialIcons name="pause" size={24} color="white" />
+                        <MaterialIcons name="play-arrow" size={32} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={{ marginLeft: 8 }}>
-                        <MaterialIcons name="close" size={24} color="white" />
+                    <TouchableOpacity style={{ marginLeft: 16 }}>
+                        <MaterialIcons name="skip-next" size={32} color="white" />
                     </TouchableOpacity>
                 </View>
             </TouchableOpacity>
@@ -260,13 +274,17 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#221f10',
     },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     scrollView: {
         flex: 1,
     },
     topBar: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingTop: 48,
         paddingBottom: 16,
@@ -276,22 +294,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         borderWidth: 2,
-        borderColor: 'rgba(242, 208, 13, 0.3)',
+        borderColor: '#f2d00d',
     },
     welcomeText: {
-        fontSize: 10,
-        letterSpacing: 2,
         color: '#f2d00d',
+        fontSize: 10,
         fontWeight: 'bold',
+        letterSpacing: 1,
     },
     userName: {
-        fontSize: 18,
-        fontWeight: 'bold',
         color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     iconRow: {
         flexDirection: 'row',
@@ -299,223 +317,235 @@ const styles = StyleSheet.create({
     iconButton: {
         width: 40,
         height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
         borderRadius: 20,
         backgroundColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    heroSection: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    heroCard: {
-        width: '100%',
-        aspectRatio: 16 / 10,
+    eventCard: {
+        marginHorizontal: 16,
+        height: 200,
         borderRadius: 16,
-        overflow: 'hidden',
+        marginTop: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
     },
-    heroImage: {
+    eventImage: {
         flex: 1,
         justifyContent: 'flex-end',
     },
-    heroOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderRadius: 16,
+    eventOverlay: {
+        padding: 16,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        borderBottomLeftRadius: 16,
+        borderBottomRightRadius: 16,
     },
-    heroContent: {
-        padding: 24,
-    },
-    liveTag: {
+    eventBadge: {
         backgroundColor: '#f2d00d',
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: 20,
+        borderRadius: 4,
         alignSelf: 'flex-start',
         marginBottom: 8,
     },
-    liveTagText: {
+    eventBadgeText: {
         color: 'black',
         fontSize: 10,
         fontWeight: 'bold',
-        letterSpacing: -0.5,
     },
-    heroTitle: {
-        fontSize: 24,
-        fontWeight: '800',
+    eventTitle: {
         color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
         marginBottom: 4,
     },
-    heroDescription: {
+    eventDescription: {
         color: 'rgba(255,255,255,0.8)',
-        fontSize: 14,
-        marginBottom: 12,
-        maxWidth: '80%',
-    },
-    registerButton: {
-        backgroundColor: '#f2d00d',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 25,
-        alignSelf: 'flex-start',
-    },
-    registerButtonText: {
-        color: 'black',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        marginTop: 24,
-    },
-    sectionTitleWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderLeftWidth: 4,
-        borderLeftColor: '#f2d00d',
-        paddingLeft: 12,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-    seeAllText: {
-        color: '#f2d00d',
         fontSize: 12,
-        fontWeight: 'bold',
-        letterSpacing: 1,
-    },
-    podcastCard: {
-        width: 160,
-    },
-    podcastImageWrapper: {
-        width: '100%',
-        aspectRatio: 1,
-        borderRadius: 8,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    podcastImage: {
-        width: '100%',
-        height: '100%',
-    },
-    playButton: {
-        position: 'absolute',
-        bottom: 8,
-        right: 8,
-        width: 40,
-        height: 40,
-        backgroundColor: 'rgba(242, 208, 13, 0.9)',
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    podcastTitle: {
-        color: 'white',
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    podcastEpisode: {
-        color: 'rgba(242, 208, 13, 0.7)',
-        fontSize: 11,
-        fontWeight: '500',
-        marginTop: 2,
     },
     quickAccessContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 16,
         flexDirection: 'row',
+        paddingHorizontal: 16,
+        marginTop: 24,
     },
     quickAccessCard: {
         flex: 1,
         backgroundColor: 'rgba(255,255,255,0.05)',
         borderRadius: 12,
-        padding: 16,
+        padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     quickAccessIcon: {
         width: 40,
         height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(242, 208, 13, 0.2)',
+        borderRadius: 10,
+        backgroundColor: '#f2d00d',
         alignItems: 'center',
         justifyContent: 'center',
     },
     quickAccessTitle: {
         color: 'white',
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: 'bold',
     },
     quickAccessSubtitle: {
-        color: 'rgba(255,255,255,0.4)',
+        color: 'rgba(255,255,255,0.5)',
         fontSize: 10,
         marginTop: 2,
     },
-    coachingContainer: {
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 32,
+        marginBottom: 16,
         paddingHorizontal: 16,
-        paddingVertical: 16,
+    },
+    sectionTitleWrapper: {
+        position: 'relative',
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    sectionUnderline: {
+        position: 'absolute',
+        bottom: -4,
+        left: 0,
+        width: 24,
+        height: 3,
+        backgroundColor: '#f2d00d',
+        borderRadius: 2,
+    },
+    seeAllText: {
+        color: '#f2d00d',
+        fontSize: 12,
+        fontWeight: 'bold',
     },
     coachingCard: {
-        flexDirection: 'row',
+        width: 240,
         backgroundColor: 'rgba(255,255,255,0.05)',
-        padding: 12,
-        borderRadius: 12,
+        borderRadius: 16,
+        overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    coachingImageWrapper: {
+        height: 140,
+        position: 'relative',
     },
     coachingImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
+        width: '100%',
+        height: '100%',
+    },
+    playButton: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: [{ translateX: -24 }, { translateY: -24 }],
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: 'white',
     },
     coachingInfo: {
-        flex: 1,
-        justifyContent: 'center',
-        marginLeft: 16,
+        padding: 16,
     },
     coachingCategory: {
-        fontSize: 10,
         color: '#f2d00d',
+        fontSize: 10,
         fontWeight: 'bold',
         letterSpacing: 1,
+        marginBottom: 4,
     },
     coachingTitle: {
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-        marginTop: 4,
+        marginBottom: 12,
+        height: 40,
     },
-    progressContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    progressBar: {
-        flex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+    progressBarBg: {
         height: 4,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 2,
-        overflow: 'hidden',
+        marginBottom: 8,
     },
-    progressFill: {
-        backgroundColor: '#f2d00d',
+    progressBarFill: {
         height: '100%',
+        backgroundColor: '#f2d00d',
+        borderRadius: 2,
     },
     progressText: {
+        color: 'rgba(255,255,255,0.4)',
         fontSize: 10,
+        textAlign: 'right',
+    },
+    podcastItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.03)',
+    },
+    podcastImage: {
+        width: 64,
+        height: 64,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    podcastInfo: {
+        flex: 1,
+        marginLeft: 16,
+    },
+    podcastTitle: {
+        color: 'white',
+        fontSize: 15,
+        fontWeight: 'bold',
+    },
+    podcastSubtitle: {
         color: 'rgba(255,255,255,0.5)',
-        marginLeft: 8,
+        fontSize: 13,
+        marginTop: 2,
+    },
+    podcastMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+    },
+    podcastDuration: {
+        color: 'gray',
+        fontSize: 12,
+        marginLeft: 4,
+    },
+    bulletPoint: {
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: 'gray',
+        marginHorizontal: 8,
+    },
+    podcastEpisode: {
+        color: 'gray',
+        fontSize: 12,
+    },
+    actionButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     miniPlayer: {
         position: 'absolute',
@@ -524,16 +554,26 @@ const styles = StyleSheet.create({
         right: 16,
         backgroundColor: '#322f1c',
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(242, 208, 13, 0.2)',
-        padding: 8,
+        height: 64,
         flexDirection: 'row',
         alignItems: 'center',
+        paddingHorizontal: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
         elevation: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(242, 208, 13, 0.2)',
+        overflow: 'hidden',
+    },
+    progressBarAbsolute: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: 'rgba(255,255,255,0.1)',
     },
     miniPlayerImage: {
         width: 40,
@@ -546,17 +586,15 @@ const styles = StyleSheet.create({
     },
     miniPlayerTitle: {
         color: 'white',
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: 'bold',
     },
     miniPlayerArtist: {
-        color: 'rgba(242, 208, 13, 0.6)',
-        fontSize: 10,
-        marginTop: 2,
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 12,
     },
     miniPlayerControls: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 8,
     },
 });

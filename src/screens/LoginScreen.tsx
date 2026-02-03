@@ -7,15 +7,58 @@ import {
     TouchableOpacity,
     StyleSheet,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { authService } from '../services/api';
 
 export default function LoginScreen() {
+    const navigation = useNavigation<any>();
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLogin, setIsLogin] = useState(true);
+    const [loading, setLoading] = useState(false);
+
+    const handleAuth = async () => {
+        if (!email || !password) {
+            Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+            return;
+        }
+
+        if (!isLogin && !name) {
+            Alert.alert('Erreur', 'Veuillez entrer votre nom');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            let response;
+
+            if (isLogin) {
+                response = await authService.login(email, password);
+            } else {
+                response = await authService.register({ name, email, password });
+            }
+
+            if (response.success) {
+                // Rediriger vers l'app principale
+                navigation.replace('Tabs');
+            } else {
+                Alert.alert('Erreur', response.message || 'Une erreur est survenue');
+            }
+        } catch (error: any) {
+            console.error(error);
+            const message = error.response?.data?.message || 'Erreur de connexion';
+            Alert.alert('Erreur', message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <KeyboardAvoidingView
@@ -37,6 +80,20 @@ export default function LoginScreen() {
                 <Text style={styles.formTitle}>
                     {isLogin ? 'Connexion' : 'Créer un compte'}
                 </Text>
+
+                {/* Nom (Inscription uniquement) */}
+                {!isLogin && (
+                    <View style={styles.inputWrapper}>
+                        <MaterialIcons name="person" size={20} color="rgba(255,255,255,0.4)" />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Nom complet"
+                            placeholderTextColor="rgba(255,255,255,0.4)"
+                            value={name}
+                            onChangeText={setName}
+                        />
+                    </View>
+                )}
 
                 {/* Email */}
                 <View style={styles.inputWrapper}>
@@ -80,10 +137,18 @@ export default function LoginScreen() {
                 )}
 
                 {/* Bouton principal */}
-                <TouchableOpacity style={styles.primaryButton}>
-                    <Text style={styles.primaryButtonText}>
-                        {isLogin ? 'Se connecter' : 'S\'inscrire'}
-                    </Text>
+                <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleAuth}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#221f10" />
+                    ) : (
+                        <Text style={styles.primaryButtonText}>
+                            {isLogin ? 'Se connecter' : 'S\'inscrire'}
+                        </Text>
+                    )}
                 </TouchableOpacity>
 
                 {/* Séparateur */}
@@ -98,34 +163,26 @@ export default function LoginScreen() {
                     <TouchableOpacity style={styles.socialButton}>
                         <MaterialIcons name="g-translate" size={24} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.socialButton, { marginLeft: 16 }]}>
-                        <MaterialIcons name="facebook" size={24} color="#1877F2" />
+                    <TouchableOpacity style={styles.socialButton}>
+                        <MaterialIcons name="facebook" size={24} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.socialButton, { marginLeft: 16 }]}>
+                    <TouchableOpacity style={styles.socialButton}>
                         <MaterialIcons name="apple" size={24} color="white" />
                     </TouchableOpacity>
                 </View>
 
-                {/* Toggle Login/Signup */}
-                <View style={styles.toggleContainer}>
-                    <Text style={styles.toggleText}>
+                {/* Toggle Login/Register */}
+                <View style={styles.footer}>
+                    <Text style={styles.footerText}>
                         {isLogin ? 'Pas encore de compte ?' : 'Déjà un compte ?'}
                     </Text>
                     <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-                        <Text style={styles.toggleLink}>
-                            {isLogin ? 'S\'inscrire' : 'Se connecter'}
+                        <Text style={styles.footerAction}>
+                            {isLogin ? 'Créer un compte' : 'Se connecter'}
                         </Text>
                     </TouchableOpacity>
                 </View>
             </View>
-
-            {/* Terms */}
-            <Text style={styles.termsText}>
-                En continuant, vous acceptez nos{' '}
-                <Text style={styles.termsLink}>Conditions d'utilisation</Text>
-                {' '}et notre{' '}
-                <Text style={styles.termsLink}>Politique de confidentialité</Text>
-            </Text>
         </KeyboardAvoidingView>
     );
 }
@@ -134,41 +191,42 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#221f10',
-        paddingHorizontal: 24,
-        justifyContent: 'center',
     },
     header: {
+        flex: 1,
         alignItems: 'center',
-        marginBottom: 32,
+        justifyContent: 'center',
+        paddingBottom: 24,
     },
     logo: {
-        width: 150,
-        height: 150,
+        width: 120,
+        height: 120,
+        marginBottom: 16,
     },
     tagline: {
+        color: '#f2d00d',
         fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
-        marginTop: 8,
-        textAlign: 'center',
+        letterSpacing: 1,
+        fontWeight: '600',
     },
     form: {
+        flex: 2,
         backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: 24,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
         padding: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
     },
     formTitle: {
         fontSize: 24,
         fontWeight: 'bold',
         color: 'white',
-        textAlign: 'center',
         marginBottom: 24,
+        textAlign: 'center',
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(0,0,0,0.3)',
         borderRadius: 12,
         paddingHorizontal: 16,
         height: 56,
@@ -179,17 +237,16 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         color: 'white',
-        fontSize: 16,
         marginLeft: 12,
+        fontSize: 16,
     },
     forgotPassword: {
         alignSelf: 'flex-end',
         marginBottom: 24,
     },
     forgotPasswordText: {
-        color: '#f2d00d',
+        color: 'rgba(255,255,255,0.6)',
         fontSize: 14,
-        fontWeight: '500',
     },
     primaryButton: {
         backgroundColor: '#f2d00d',
@@ -197,11 +254,7 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#f2d00d',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 6,
+        marginBottom: 24,
     },
     primaryButtonText: {
         color: '#221f10',
@@ -211,7 +264,7 @@ const styles = StyleSheet.create({
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 24,
+        marginBottom: 24,
     },
     dividerLine: {
         flex: 1,
@@ -220,46 +273,38 @@ const styles = StyleSheet.create({
     },
     dividerText: {
         color: 'rgba(255,255,255,0.4)',
+        paddingHorizontal: 16,
         fontSize: 14,
-        marginHorizontal: 16,
     },
     socialButtons: {
         flexDirection: 'row',
         justifyContent: 'center',
+        marginBottom: 32,
     },
     socialButton: {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(255,255,255,0.1)',
         alignItems: 'center',
         justifyContent: 'center',
+        marginHorizontal: 12,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
     },
-    toggleContainer: {
+    footer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        marginTop: 24,
+        alignItems: 'center',
     },
-    toggleText: {
-        color: 'rgba(255,255,255,0.5)',
+    footerText: {
+        color: 'rgba(255,255,255,0.6)',
         fontSize: 14,
     },
-    toggleLink: {
+    footerAction: {
         color: '#f2d00d',
         fontSize: 14,
         fontWeight: 'bold',
         marginLeft: 8,
-    },
-    termsText: {
-        color: 'rgba(255,255,255,0.4)',
-        fontSize: 12,
-        textAlign: 'center',
-        marginTop: 24,
-        lineHeight: 18,
-    },
-    termsLink: {
-        color: '#f2d00d',
     },
 });

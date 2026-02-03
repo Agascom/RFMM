@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,40 +6,66 @@ import {
     ScrollView,
     TouchableOpacity,
     StyleSheet,
-    ImageBackground
+    ImageBackground,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-
-const coachingData = {
-    id: '1',
-    title: 'Maîtrise Mentale',
-    subtitle: 'Gérer l\'Incertitude',
-    instructor: 'Pasteur Francis',
-    progress: 65,
-    totalLessons: 12,
-    completedLessons: 8,
-    totalDuration: '4h 30min',
-    description: 'Apprenez à naviguer dans les moments d\'incertitude avec foi et confiance. Ce programme de coaching vous guidera à travers des techniques pratiques pour renforcer votre mental et maintenir votre paix intérieure.',
-    lessons: [
-        { id: '1', title: 'Introduction au Programme', duration: '12 min', completed: true },
-        { id: '2', title: 'Comprendre l\'Incertitude', duration: '18 min', completed: true },
-        { id: '3', title: 'Les Piliers de la Foi', duration: '22 min', completed: true },
-        { id: '4', title: 'Exercices de Méditation', duration: '25 min', completed: true },
-        { id: '5', title: 'Surmonter la Peur', duration: '20 min', completed: true },
-        { id: '6', title: 'Affirmer sa Confiance', duration: '18 min', completed: true },
-        { id: '7', title: 'La Prière comme Ancrage', duration: '28 min', completed: true },
-        { id: '8', title: 'Témoignages Inspirants', duration: '15 min', completed: true },
-        { id: '9', title: 'Plan d\'Action Personnel', duration: '22 min', completed: false, current: true },
-        { id: '10', title: 'Maintenir le Cap', duration: '20 min', completed: false },
-        { id: '11', title: 'Communauté de Soutien', duration: '16 min', completed: false },
-        { id: '12', title: 'Conclusion et Prochaines Étapes', duration: '14 min', completed: false },
-    ],
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAhSOu10N9ERlhJYg2HQKt_D8a0fMnP9bFVBJV7TtAviK99OGvZAQcYIP0cZVR-7HrN_Ju0wvN0cmISOOV0w_d-TqdqZWuaR3mpxZGDrm5aRFJT6QEtjhHFB0w4u8Rv_EajIb3mSscBKDdtSxvlfFfpkcOnyRvTQ5Aul8wbSQFAzMiv-ARedBTOINs6a47NE3aoIoeVAuxELXz-SGjN-OaXHO2ZtZxh_ZQy2uivotWDF5ZikVCHjnB_yOIwI39jYxeOxouJbcUnyIhL',
-};
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { coachingService } from '../services/api';
+import { CoachingProgram, CoachingLesson } from '../types/api';
 
 export default function CoachingDetailScreen() {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const { programId } = route.params || {};
+
+    const [program, setProgram] = useState<CoachingProgram | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (programId) {
+            loadProgram();
+        } else {
+            setLoading(false);
+        }
+    }, [programId]);
+
+    const loadProgram = async () => {
+        try {
+            setLoading(true);
+            const response = await coachingService.getProgram(programId);
+            if (response.success) {
+                setProgram(response.data);
+            }
+        } catch (error) {
+            console.error('Erreur chargement programme:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color="#f2d00d" />
+            </View>
+        );
+    }
+
+    if (!program) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <Text style={{ color: 'white' }}>Programme non trouvé</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: '#f2d00d' }}>Retour</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    // Mock progress pour l'instant car l'API publique retourne le catalogue
+    const progress = 0;
+    const completedLessons = 0;
 
     return (
         <View style={styles.container}>
@@ -50,7 +76,7 @@ export default function CoachingDetailScreen() {
             >
                 {/* Header avec image */}
                 <ImageBackground
-                    source={{ uri: coachingData.imageUrl }}
+                    source={{ uri: program.cover_image_url }}
                     style={styles.headerImage}
                 >
                     <View style={styles.headerOverlay} />
@@ -73,29 +99,30 @@ export default function CoachingDetailScreen() {
 
                     {/* Titre */}
                     <View style={styles.headerContent}>
-                        <Text style={styles.headerCategory}>{coachingData.title}</Text>
-                        <Text style={styles.headerTitle}>{coachingData.subtitle}</Text>
-                        <Text style={styles.headerInstructor}>par {coachingData.instructor}</Text>
+                        <Text style={styles.headerCategory}>{program.category?.name}</Text>
+                        <Text style={styles.headerTitle}>{program.title}</Text>
+                        {program.subtitle && <Text style={styles.headerSubtitle}>{program.subtitle}</Text>}
+                        <Text style={styles.headerInstructor}>par {program.instructor}</Text>
                     </View>
                 </ImageBackground>
 
-                {/* Progression */}
+                {/* Progression (visible seulement si commencé, ici mocké à 0 donc on affiche invite) */}
                 <View style={styles.progressSection}>
                     <View style={styles.progressHeader}>
                         <Text style={styles.progressLabel}>Votre Progression</Text>
-                        <Text style={styles.progressPercent}>{coachingData.progress}%</Text>
+                        <Text style={styles.progressPercent}>{progress}%</Text>
                     </View>
                     <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${coachingData.progress}%` }]} />
+                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
                     </View>
                     <View style={styles.progressStats}>
                         <View style={styles.progressStat}>
                             <MaterialIcons name="check-circle" size={18} color="#f2d00d" />
-                            <Text style={styles.progressStatText}>{coachingData.completedLessons}/{coachingData.totalLessons} leçons</Text>
+                            <Text style={styles.progressStatText}>{completedLessons}/{program.total_lessons} leçons</Text>
                         </View>
                         <View style={styles.progressStat}>
                             <MaterialIcons name="access-time" size={18} color="rgba(255,255,255,0.5)" />
-                            <Text style={styles.progressStatText}>{coachingData.totalDuration}</Text>
+                            <Text style={styles.progressStatText}>{program.duration}</Text>
                         </View>
                     </View>
                 </View>
@@ -103,60 +130,42 @@ export default function CoachingDetailScreen() {
                 {/* Description */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>À propos du programme</Text>
-                    <Text style={styles.descriptionText}>{coachingData.description}</Text>
+                    <Text style={styles.descriptionText}>{program.description}</Text>
                 </View>
 
                 {/* Leçons */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Contenu du Programme</Text>
-                    <View style={styles.lessonsList}>
-                        {coachingData.lessons.map((lesson, index) => (
-                            <TouchableOpacity
-                                key={lesson.id}
-                                style={[
-                                    styles.lessonItem,
-                                    lesson.current && styles.lessonItemCurrent
-                                ]}
-                                activeOpacity={0.7}
-                            >
-                                {/* Indicateur de statut */}
-                                <View style={[
-                                    styles.lessonStatus,
-                                    lesson.completed && styles.lessonStatusCompleted,
-                                    lesson.current && styles.lessonStatusCurrent
-                                ]}>
-                                    {lesson.completed ? (
-                                        <MaterialIcons name="check" size={16} color="#221f10" />
-                                    ) : lesson.current ? (
-                                        <MaterialIcons name="play-arrow" size={16} color="#221f10" />
-                                    ) : (
+                {program.lessons && program.lessons.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Contenu du Programme</Text>
+                        <View style={styles.lessonsList}>
+                            {program.lessons.map((lesson, index) => (
+                                <TouchableOpacity
+                                    key={lesson.id}
+                                    style={styles.lessonItem}
+                                    activeOpacity={0.7}
+                                >
+                                    {/* Indicateur de statut */}
+                                    <View style={styles.lessonStatus}>
                                         <Text style={styles.lessonNumber}>{index + 1}</Text>
-                                    )}
-                                </View>
-
-                                {/* Info de la leçon */}
-                                <View style={styles.lessonInfo}>
-                                    <Text style={[
-                                        styles.lessonTitle,
-                                        lesson.completed && styles.lessonTitleCompleted
-                                    ]}>
-                                        {lesson.title}
-                                    </Text>
-                                    <Text style={styles.lessonDuration}>{lesson.duration}</Text>
-                                </View>
-
-                                {/* Action */}
-                                {lesson.current ? (
-                                    <View style={styles.continueTag}>
-                                        <Text style={styles.continueTagText}>CONTINUER</Text>
                                     </View>
-                                ) : !lesson.completed ? (
-                                    <MaterialIcons name="lock" size={20} color="rgba(255,255,255,0.3)" />
-                                ) : null}
-                            </TouchableOpacity>
-                        ))}
+
+                                    {/* Info de la leçon */}
+                                    <View style={styles.lessonInfo}>
+                                        <Text style={styles.lessonTitle}>{lesson.title}</Text>
+                                        <Text style={styles.lessonDuration}>{lesson.duration}</Text>
+                                    </View>
+
+                                    {/* Action */}
+                                    <MaterialIcons
+                                        name={lesson.is_free_preview ? "play-circle" : "lock"}
+                                        size={20}
+                                        color={lesson.is_free_preview ? "#f2d00d" : "rgba(255,255,255,0.3)"}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                     </View>
-                </View>
+                )}
             </ScrollView>
 
             {/* Footer */}
@@ -166,7 +175,7 @@ export default function CoachingDetailScreen() {
                     onPress={() => navigation.navigate('Player')}
                 >
                     <MaterialIcons name="play-arrow" size={24} color="#221f10" />
-                    <Text style={styles.continueButtonText}>Continuer la Leçon 9</Text>
+                    <Text style={styles.continueButtonText}>Commencer</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -177,6 +186,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#221f10',
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollView: {
         flex: 1,
@@ -238,6 +251,11 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: 'bold',
         marginTop: 4,
+    },
+    headerSubtitle: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 18,
+        marginTop: 2,
     },
     headerInstructor: {
         color: 'rgba(255,255,255,0.6)',
@@ -321,9 +339,6 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255,255,255,0.05)',
     },
-    lessonItemCurrent: {
-        backgroundColor: 'rgba(242, 208, 13, 0.1)',
-    },
     lessonStatus: {
         width: 32,
         height: 32,
@@ -331,12 +346,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.1)',
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    lessonStatusCompleted: {
-        backgroundColor: '#f2d00d',
-    },
-    lessonStatusCurrent: {
-        backgroundColor: '#f2d00d',
     },
     lessonNumber: {
         color: 'rgba(255,255,255,0.4)',
@@ -352,24 +361,10 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '500',
     },
-    lessonTitleCompleted: {
-        color: 'rgba(255,255,255,0.5)',
-    },
     lessonDuration: {
         color: 'rgba(255,255,255,0.4)',
         fontSize: 12,
         marginTop: 2,
-    },
-    continueTag: {
-        backgroundColor: '#f2d00d',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    continueTagText: {
-        color: '#221f10',
-        fontSize: 10,
-        fontWeight: 'bold',
     },
     footer: {
         position: 'absolute',

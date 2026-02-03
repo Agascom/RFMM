@@ -1,251 +1,158 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     Image,
     ScrollView,
     TouchableOpacity,
-    StyleSheet
+    StyleSheet,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { libraryService } from '../services/api';
+import { Book, CoachingProgram } from '../types/api';
 
 type TabType = 'audiobook' | 'ebook' | 'coaching';
 
-const libraryItems = {
-    audiobooks: [
-        {
-            id: '1',
-            title: 'Le Chemin de la Grâce',
-            author: 'Pasteur Francis',
-            totalDuration: '2h 45m',
-            progress: 65,
-            type: 'audiobook',
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAk_P96jDVIlRGcwtDeWuAOwJYUlNH5eP85VmkDZov9NnDTzvtwBRFXQmG8KeR0mClBTAWUfwczdA1W4rrfs_or3v9W2n-IiSuJx6nPQg95hioWEB88fl_yRU97BJcsWFJzc4m65MA4ctYs-6BqT-0l19OLx2mNlmbOA2bnreEo5wqNMgEwZXZ6Va_8wIb3Bes3knDAjwe-OwgMl_-W0W4jniFlJR7GHTPlzD44Viys6aYOkjMfBqMpgar9SJyZcTUe0MAptwpC2ujF',
-        },
-        {
-            id: '2',
-            title: 'La Paix Intérieure',
-            author: 'Pasteur Francis',
-            totalDuration: '1h 30m',
-            progress: 32,
-            type: 'audiobook',
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBfKNyvZxVCceSH1_w0YHwYqXg13l_xgpIut6zqnKmwsz_N7TVjJiGun-nIeH4scRV7F8eCIMOMW5WwUjnhA9suDx3LlntsNqmYOjZvuJugt_Z_TBwl2GHUaEpMv81z3xZt_t-oFBh6OBuzjCCh7MaFK_nNo7BI2kuuzZQB9748XW3vXImy4bYoGH0Eqb0z55OlPV9M1I-1Oa6gbiwrI_FPLG2tMHYbdWGT-AsE5NO9CWd1yZF9_UmhnGiO3Pp2tCwKt93SZsF63wtx',
-        },
-        {
-            id: '3',
-            title: 'Dévotion Quotidienne Vol. 1',
-            author: 'Pasteur Francis',
-            totalDuration: '3h 15m',
-            progress: 100,
-            type: 'audiobook',
-            isCompleted: true,
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAPZ1urFQMpFgEXXE2GB2TMW5KaPzBTQ3B_YVmP7xEtngDx9_1K_ahD0js5_SsA-1ETkkjoK8fuW_1xVp1c2Si156yhIHSKxjYU4Qj9SEJkSpLkD3egaPtSD290RUZ6jGMcmzumqd9Ab308TUQYex-dKALuzweKhmBNURjEQtG985tQawMGHX8AAPLRipGY51sJAA3295BGj5IalVpUJ6CMMmQL3XK-uL_qr1pP3rH9dJYD5Rr1LDosjP945VEVG6WruGyUhW8yAj7w',
-        },
-    ],
-    ebooks: [
-        {
-            id: '4',
-            title: 'Marcher dans la Foi',
-            author: 'Pasteur Francis',
-            type: 'ebook',
-            size: '2.4 Mo',
-            progress: 45,
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC65_rrcQgI7Gg6AFnG2ElqYdwOVh0f5oNsF1AJN41YiG0mqXmO8VPWwV5uz1IUuqHXItOiFyfNFuZW1N8k6IWXSIhvRYKANNpVjeYTOJl5WkHmIdOg1WoJrs59x1CncjT-UQMC5iH89RupyrYRiCKDvxSp6xOh9myp82edUdn1peA-QDdCTTUmUxURjoniO_5G3y9pxL-w2qyRQ-tUMkGeYJNNaRpEjNVrPeHl57Y3WBr_BNPXkJJIcWZbiPoqdOB3oGgUW5p9OcEe',
-        },
-        {
-            id: '5',
-            title: 'Une Vie avec un But',
-            author: 'Pasteur Francis',
-            type: 'ebook',
-            size: '1.8 Mo',
-            progress: 0,
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB1tJ-Wy2qhlI6vWxTjRzQ0xYlg_FA2Vn3yiwysyEQ3DxDxXtcdf-fTX834BtDztrY4t7pknZGRwWuvbNM4sMBz_HXzecOgVXnDMeS0pmV8wboZ77cBFraZ6T5xM6UnZHXYz7S0N6ecn7RXYFepxGlhurfJLrXd1kAUXiy4XRkj94MqsYoL7zTmOQXgqngYz60j8hIdzuwFVIs9UFUmgmRBn2qh6vJ1IoFHSlZHRdKatQFc9jft_gQ-jHhYczS2ijBGCt6ulpXMZAvI',
-        },
-    ],
-    coaching: [
-        {
-            id: '6',
-            title: 'Maîtrise Mentale',
-            subtitle: 'Gérer l\'Incertitude',
-            author: 'Pasteur Francis',
-            type: 'coaching',
-            progress: 65,
-            totalLessons: 12,
-            completedLessons: 8,
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAhSOu10N9ERlhJYg2HQKt_D8a0fMnP9bFVBJV7TtAviK99OGvZAQcYIP0cZVR-7HrN_Ju0wvN0cmISOOV0w_d-TqdqZWuaR3mpxZGDrm5aRFJT6QEtjhHFB0w4u8Rv_EajIb3mSscBKDdtSxvlfFfpkcOnyRvTQ5Aul8wbSQFAzMiv-ARedBTOINs6a47NE3aoIoeVAuxELXz-SGjN-OaXHO2ZtZxh_ZQy2uivotWDF5ZikVCHjnB_yOIwI39jYxeOxouJbcUnyIhL',
-        },
-        {
-            id: '7',
-            title: 'Leadership',
-            subtitle: 'Diriger avec Compassion',
-            author: 'Pasteur Francis',
-            type: 'coaching',
-            progress: 0,
-            totalLessons: 10,
-            completedLessons: 0,
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDejsiP8_uNtv-Rn_EcpGuLEMi37W1xYMaryYHyVZ4LHMNzP1Z-9DgO9_46ywD_EiRoNYzzo3BgwWZ4br9BGMx2D9E_SnKeukIQaTA__QTp5H2EUJxbyY1M_d8MIReqvDJlMawxtAE_Cv4k0wuKguMaDyzxwqNSNoFMHmX8Z4o5B4gq2urHVHAjHh_dVFMBml9SS0qOp9Ek52cXypEBgkBqpetVQ6Mi7cj6ZzUO-eOkuFvKkmcDckhIrYsqIy1F8jvvx5YhlK_0HWl_',
-        },
-    ],
+type LibraryItem = (Book | CoachingProgram) & {
+    progress?: number,
+    // Propriétés mockées au cas où l'API ne les renvoie pas encore
+    totalDuration?: string,
+    completedLessons?: number,
+    totalLessons?: number,
+    isCompleted?: boolean
 };
 
 export default function LibraryScreen() {
     const navigation = useNavigation<any>();
     const [activeTab, setActiveTab] = useState<TabType>('audiobook');
+    const [items, setItems] = useState<LibraryItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Récupération des items selon l'onglet actif
-    const getCurrentItems = () => {
-        switch (activeTab) {
-            case 'audiobook':
-                return libraryItems.audiobooks;
-            case 'ebook':
-                return libraryItems.ebooks;
-            case 'coaching':
-                return libraryItems.coaching;
-            default:
-                return [];
+    useEffect(() => {
+        loadLibrary();
+    }, [activeTab]);
+
+    const loadLibrary = async () => {
+        try {
+            setLoading(true);
+            const response = await libraryService.getMyLibrary(activeTab);
+            if (response.success) {
+                // On cast pour l'instant car l'API user library n'est pas 100% typée dans notre frontend
+                setItems(response.data as LibraryItem[]);
+            }
+        } catch (error) {
+            console.error('Erreur chargement bibliothèque:', error);
+            setItems([]);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const currentItems = getCurrentItems();
-    const inProgress = currentItems.filter((item: any) => item.progress > 0 && item.progress < 100);
-    const notStarted = currentItems.filter((item: any) => item.progress === 0);
-    const completed = currentItems.filter((item: any) => item.progress === 100);
+    // Séparation en cours / terminé (mock car API ne filtre pas encore statut completed)
+    const inProgress = items.filter(item => !item.isCompleted && (item.progress || 0) < 100);
+    const completed = items.filter(item => item.isCompleted || (item.progress || 0) === 100);
+
+    const getTabLabel = (tab: TabType) => {
+        switch (tab) {
+            case 'audiobook': return 'Livres Audio';
+            case 'ebook': return 'E-books';
+            case 'coaching': return 'Coaching';
+        }
+    };
+
+    const handleItemPress = (item: LibraryItem) => {
+        if (activeTab === 'coaching') {
+            navigation.navigate('CoachingDetail', { programId: item.id });
+        } else {
+            // Pour livre/audiobook, soit on ouvre le player, soit le détail
+            // Si c'est un audiobook en cours, on ouvre le player
+            if (activeTab === 'audiobook') {
+                navigation.navigate('Player', { bookId: item.id });
+            } else {
+                navigation.navigate('BookDetail', { bookId: item.id });
+            }
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color="#f2d00d" />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
-            {/* En-tête */}
+            {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.iconButton}>
-                    <MaterialIcons name="arrow-back-ios" size={24} color="rgba(255,255,255,0.6)" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Ma Bibliothèque</Text>
-                <TouchableOpacity style={styles.iconButton}>
-                    <MaterialIcons name="search" size={24} color="rgba(255,255,255,0.6)" />
+                <View style={styles.headerTitleContainer}>
+                    <Text style={styles.headerTitle}>Ma Bibliothèque</Text>
+                    <Text style={styles.headerSubtitle}>{items.length} éléments</Text>
+                </View>
+                <TouchableOpacity style={styles.searchButton} onPress={() => navigation.navigate('Search')}>
+                    <MaterialIcons name="search" size={24} color="white" />
                 </TouchableOpacity>
             </View>
 
-            {/* Onglets fonctionnels */}
+            {/* Onglets */}
             <View style={styles.tabsContainer}>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'audiobook' && styles.tabActive]}
-                    onPress={() => setActiveTab('audiobook')}
-                >
-                    <Text style={activeTab === 'audiobook' ? styles.tabTextActive : styles.tabText}>
-                        Livres Audio
-                    </Text>
-                    <View style={styles.tabBadge}>
-                        <Text style={styles.tabBadgeText}>{libraryItems.audiobooks.length}</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'ebook' && styles.tabActive]}
-                    onPress={() => setActiveTab('ebook')}
-                >
-                    <Text style={activeTab === 'ebook' ? styles.tabTextActive : styles.tabText}>
-                        E-books
-                    </Text>
-                    <View style={styles.tabBadge}>
-                        <Text style={styles.tabBadgeText}>{libraryItems.ebooks.length}</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'coaching' && styles.tabActive]}
-                    onPress={() => setActiveTab('coaching')}
-                >
-                    <Text style={activeTab === 'coaching' ? styles.tabTextActive : styles.tabText}>
-                        Coaching
-                    </Text>
-                    <View style={styles.tabBadge}>
-                        <Text style={styles.tabBadgeText}>{libraryItems.coaching.length}</Text>
-                    </View>
-                </TouchableOpacity>
+                {(['audiobook', 'ebook', 'coaching'] as TabType[]).map((tab) => (
+                    <TouchableOpacity
+                        key={tab}
+                        style={[styles.tab, activeTab === tab && styles.tabActive]}
+                        onPress={() => setActiveTab(tab)}
+                    >
+                        <Text style={activeTab === tab ? styles.tabTextActive : styles.tabText}>
+                            {getTabLabel(tab)}
+                        </Text>
+                        {activeTab === tab && <View style={styles.activeIndicator} />}
+                    </TouchableOpacity>
+                ))}
             </View>
 
             <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={{ paddingBottom: 120 }}
+                style={styles.content}
+                contentContainerStyle={{ paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* En cours */}
+                {/* Section En Cours */}
                 {inProgress.length > 0 && (
-                    <>
-                        <View style={styles.sectionHeader}>
+                    <View style={styles.section}>
+                        <View style={[styles.sectionHeader, styles.sectionHeaderBordered]}>
                             <Text style={styles.sectionLabel}>EN COURS</Text>
                         </View>
                         <View style={styles.itemsList}>
-                            {inProgress.map((item: any) => (
+                            {inProgress.map((item) => (
                                 <TouchableOpacity
                                     key={item.id}
                                     style={styles.itemCard}
-                                    onPress={() => activeTab === 'coaching'
-                                        ? navigation.navigate('CoachingDetail')
-                                        : navigation.navigate('Player')
-                                    }
+                                    onPress={() => handleItemPress(item)}
                                     activeOpacity={0.7}
                                 >
                                     <Image
-                                        source={{ uri: item.imageUrl }}
-                                        style={activeTab === 'ebook' ? styles.ebookImage : styles.itemImage}
+                                        source={{ uri: item.cover_image_url }}
+                                        style={styles.itemImage}
                                     />
                                     <View style={styles.itemInfo}>
-                                        <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                                        {item.subtitle && (
-                                            <Text style={styles.itemSubtitleText}>{item.subtitle}</Text>
-                                        )}
-                                        <Text style={styles.itemSubtitle}>
-                                            {item.author} {item.totalDuration ? `• ${item.totalDuration}` : ''}
-                                            {item.totalLessons ? `• ${item.completedLessons}/${item.totalLessons} leçons` : ''}
+                                        <Text style={styles.itemTitle} numberOfLines={1}>
+                                            {item.title}
                                         </Text>
-                                        <View style={styles.progressContainer}>
-                                            <View style={styles.progressBar}>
-                                                <View style={[styles.progressFill, { width: `${item.progress}%` }]} />
-                                            </View>
-                                            <Text style={styles.progressText}>{item.progress}%</Text>
-                                        </View>
-                                    </View>
-                                    <TouchableOpacity style={styles.playButtonSmall}>
-                                        <MaterialIcons name="play-arrow" size={20} color="black" />
-                                    </TouchableOpacity>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </>
-                )}
+                                        <Text style={styles.itemSubtitle}>
+                                            {(item as any).instructor || (item as any).author}
+                                        </Text>
 
-                {/* Non commencé */}
-                {notStarted.length > 0 && (
-                    <>
-                        <View style={[styles.sectionHeader, styles.sectionHeaderBordered]}>
-                            <Text style={styles.sectionLabel}>NON COMMENCÉ</Text>
-                        </View>
-                        <View style={styles.itemsList}>
-                            {notStarted.map((item: any) => (
-                                <TouchableOpacity
-                                    key={item.id}
-                                    style={styles.itemCard}
-                                    onPress={() => activeTab === 'coaching'
-                                        ? navigation.navigate('CoachingDetail')
-                                        : navigation.navigate('Player')
-                                    }
-                                    activeOpacity={0.7}
-                                >
-                                    <Image
-                                        source={{ uri: item.imageUrl }}
-                                        style={activeTab === 'ebook' ? styles.ebookImage : styles.itemImage}
-                                    />
-                                    <View style={styles.itemInfo}>
-                                        <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                                        {item.subtitle && (
-                                            <Text style={styles.itemSubtitleText}>{item.subtitle}</Text>
-                                        )}
-                                        <Text style={styles.itemSubtitle}>
-                                            {item.author}
-                                            {item.size ? ` • ${item.size}` : ''}
-                                            {item.totalLessons ? ` • ${item.totalLessons} leçons` : ''}
-                                        </Text>
-                                        <View style={styles.newTag}>
-                                            <Text style={styles.newTagText}>NOUVEAU</Text>
+                                        <View style={styles.progressContainer}>
+                                            <View style={styles.progressBarBg}>
+                                                <View style={[styles.progressBarFill, { width: `${item.progress || 0}%` }]} />
+                                            </View>
+                                            <Text style={styles.progressText}>
+                                                {item.progress || 0}%
+                                                {activeTab === 'audiobook' && item.duration ? ` • ${item.duration} restants` : ''}
+                                                {activeTab === 'coaching' && ` • ${(item as any).completedLessons || 0}/${(item as any).total_lessons} leçons`}
+                                            </Text>
                                         </View>
                                     </View>
                                     <TouchableOpacity style={styles.playButtonSmall}>
@@ -258,29 +165,32 @@ export default function LibraryScreen() {
                                 </TouchableOpacity>
                             ))}
                         </View>
-                    </>
+                    </View>
                 )}
 
-                {/* Terminé */}
+                {/* Section Terminé */}
                 {completed.length > 0 && (
-                    <>
+                    <View style={styles.section}>
                         <View style={[styles.sectionHeader, styles.sectionHeaderBordered]}>
                             <Text style={styles.sectionLabel}>TERMINÉ</Text>
                         </View>
                         <View style={styles.itemsList}>
-                            {completed.map((item: any) => (
+                            {completed.map((item) => (
                                 <TouchableOpacity
                                     key={item.id}
                                     style={styles.itemCard}
                                     activeOpacity={0.7}
+                                    onPress={() => handleItemPress(item)}
                                 >
                                     <Image
-                                        source={{ uri: item.imageUrl }}
+                                        source={{ uri: item.cover_image_url }}
                                         style={[styles.itemImage, styles.imageCompleted]}
                                     />
                                     <View style={styles.itemInfo}>
                                         <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                                        <Text style={styles.itemSubtitle}>{item.author}</Text>
+                                        <Text style={styles.itemSubtitle}>
+                                            {(item as any).instructor || (item as any).author}
+                                        </Text>
                                         <View style={styles.completedRow}>
                                             <MaterialIcons name="check-circle" size={16} color="#f2d00d" />
                                             <Text style={styles.completedText}>TERMINÉ</Text>
@@ -292,11 +202,11 @@ export default function LibraryScreen() {
                                 </TouchableOpacity>
                             ))}
                         </View>
-                    </>
+                    </View>
                 )}
 
                 {/* Message vide */}
-                {currentItems.length === 0 && (
+                {items.length === 0 && !loading && (
                     <View style={styles.emptyState}>
                         <MaterialIcons name="library-books" size={64} color="rgba(255,255,255,0.2)" />
                         <Text style={styles.emptyTitle}>Aucun contenu</Text>
@@ -326,6 +236,10 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#221f10',
     },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -333,215 +247,201 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 48,
         paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
     },
-    iconButton: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
+    headerTitleContainer: {
+        flex: 1,
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
         color: 'white',
     },
-    tabsContainer: {
-        paddingHorizontal: 16,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.5)',
+        marginTop: 2,
     },
-    tab: {
-        flex: 1,
-        flexDirection: 'row',
+    searchButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 16,
-        borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
+    },
+    tabsContainer: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 16,
+    },
+    tab: {
+        marginRight: 24,
+        paddingVertical: 12,
+        position: 'relative',
     },
     tabActive: {
-        borderBottomColor: '#f2d00d',
+        // Active state styling handled by indicator
     },
     tabText: {
-        fontSize: 13,
-        fontWeight: 'bold',
+        fontSize: 14,
+        fontWeight: '600',
         color: 'rgba(255,255,255,0.5)',
     },
     tabTextActive: {
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#f2d00d',
     },
-    tabBadge: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 10,
-        marginLeft: 6,
+    activeIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        backgroundColor: '#f2d00d',
+        borderRadius: 1.5,
     },
-    tabBadgeText: {
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: 11,
-        fontWeight: 'bold',
-    },
-    scrollView: {
+    content: {
         flex: 1,
+    },
+    section: {
+        marginBottom: 24,
     },
     sectionHeader: {
         paddingHorizontal: 16,
-        paddingVertical: 16,
+        paddingVertical: 12,
+        marginBottom: 8,
     },
     sectionHeaderBordered: {
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.1)',
-        marginTop: 8,
-        paddingTop: 24,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
     },
     sectionLabel: {
         fontSize: 12,
-        letterSpacing: 1,
         fontWeight: 'bold',
-        color: 'rgba(255,255,255,0.5)',
+        letterSpacing: 1,
+        color: 'rgba(255,255,255,0.4)',
     },
-    itemsList: {},
+    itemsList: {
+        paddingHorizontal: 16,
+    },
     itemCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     itemImage: {
-        width: 64,
-        height: 64,
-        borderRadius: 8,
-    },
-    ebookImage: {
-        width: 56,
+        width: 60,
         height: 80,
         borderRadius: 8,
+        backgroundColor: '#2a2714',
     },
     imageCompleted: {
         opacity: 0.6,
     },
     itemInfo: {
         flex: 1,
-        justifyContent: 'center',
         marginLeft: 16,
+        justifyContent: 'center',
     },
     itemTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: 'bold',
         color: 'white',
-    },
-    itemSubtitleText: {
-        fontSize: 13,
-        color: '#f2d00d',
-        marginTop: 2,
+        marginBottom: 4,
     },
     itemSubtitle: {
+        fontSize: 12,
         color: 'rgba(255,255,255,0.5)',
-        fontSize: 13,
-        marginTop: 2,
         marginBottom: 8,
     },
     progressContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        width: '100%',
     },
-    progressBar: {
-        flex: 1,
+    progressBarBg: {
         height: 4,
-        borderRadius: 2,
         backgroundColor: 'rgba(255,255,255,0.1)',
-        overflow: 'hidden',
+        borderRadius: 2,
+        marginBottom: 4,
     },
-    progressFill: {
+    progressBarFill: {
         height: '100%',
         backgroundColor: '#f2d00d',
+        borderRadius: 2,
     },
     progressText: {
-        color: '#f2d00d',
-        fontSize: 12,
-        fontWeight: 'bold',
-        marginLeft: 12,
-        width: 36,
-        textAlign: 'right',
-    },
-    playButtonSmall: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#f2d00d',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 12,
-    },
-    newTag: {
-        backgroundColor: 'rgba(242, 208, 13, 0.2)',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-        alignSelf: 'flex-start',
-    },
-    newTagText: {
-        color: '#f2d00d',
         fontSize: 10,
-        fontWeight: 'bold',
+        color: 'rgba(255,255,255,0.4)',
     },
     completedRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 8,
+        marginTop: 4,
     },
     completedText: {
-        color: '#f2d00d',
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: 'bold',
+        color: '#f2d00d',
+        marginLeft: 4,
+        letterSpacing: 0.5,
+    },
+    playButtonSmall: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#f2d00d',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginLeft: 8,
     },
     emptyState: {
         alignItems: 'center',
-        paddingVertical: 64,
-        paddingHorizontal: 32,
+        justifyContent: 'center',
+        padding: 32,
+        marginTop: 32,
     },
     emptyTitle: {
-        color: 'white',
         fontSize: 18,
         fontWeight: 'bold',
+        color: 'white',
         marginTop: 16,
+        marginBottom: 8,
     },
     emptyText: {
-        color: 'rgba(255,255,255,0.5)',
         fontSize: 14,
+        color: 'rgba(255,255,255,0.5)',
         textAlign: 'center',
-        marginTop: 8,
+        lineHeight: 20,
     },
     footerSection: {
-        marginTop: 32,
-        paddingHorizontal: 16,
+        padding: 24,
         alignItems: 'center',
         marginBottom: 32,
     },
     footerText: {
-        color: 'rgba(255,255,255,0.5)',
         fontSize: 14,
+        color: 'rgba(255,255,255,0.6)',
         marginBottom: 16,
-        textAlign: 'center',
     },
     browseButton: {
-        backgroundColor: '#f2d00d',
-        paddingVertical: 14,
-        paddingHorizontal: 32,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
         borderRadius: 25,
+        backgroundColor: 'rgba(242, 208, 13, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(242, 208, 13, 0.3)',
     },
     browseButtonText: {
-        color: 'black',
+        fontSize: 12,
         fontWeight: 'bold',
-        fontSize: 14,
+        color: '#f2d00d',
         letterSpacing: 1,
     },
 });

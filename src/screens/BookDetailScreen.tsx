@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,35 +6,15 @@ import {
     ScrollView,
     TouchableOpacity,
     StyleSheet,
-    Dimensions
+    Dimensions,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { booksService } from '../services/api';
+import { Book } from '../types/api';
 
 const { width } = Dimensions.get('window');
-
-const bookData = {
-    id: '1',
-    title: 'Marcher dans la Foi',
-    author: 'Pasteur Francis',
-    type: 'ebook',
-    price: 5000,
-    originalPrice: 7500,
-    rating: 4.8,
-    reviewsCount: 256,
-    pages: 248,
-    language: 'Français',
-    publishDate: '15 Janvier 2024',
-    description: 'Un guide pratique et inspirant pour approfondir votre foi et vivre une vie chrétienne épanouissante. Ce livre vous accompagnera dans votre quête spirituelle quotidienne, avec des enseignements clairs et des exercices pratiques.',
-    chapters: [
-        { title: 'Introduction à la Foi', duration: '15 min' },
-        { title: 'Les Fondations Spirituelles', duration: '22 min' },
-        { title: 'La Prière Efficace', duration: '28 min' },
-        { title: 'Vivre dans la Grâce', duration: '25 min' },
-        { title: 'Surmonter les Épreuves', duration: '30 min' },
-    ],
-    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC65_rrcQgI7Gg6AFnG2ElqYdwOVh0f5oNsF1AJN41YiG0mqXmO8VPWwV5uz1IUuqHXItOiFyfNFuZW1N8k6IWXSIhvRYKANNpVjeYTOJl5WkHmIdOg1WoJrs59x1CncjT-UQMC5iH89RupyrYRiCKDvxSp6xOh9myp82edUdn1peA-QDdCTTUmUxURjoniO_5G3y9pxL-w2qyRQ-tUMkGeYJNNaRpEjNVrPeHl57Y3WBr_BNPXkJJIcWZbiPoqdOB3oGgUW5p9OcEe',
-};
 
 const formatPrice = (price: number) => {
     return price.toLocaleString('fr-FR') + ' FCFA';
@@ -42,6 +22,52 @@ const formatPrice = (price: number) => {
 
 export default function BookDetailScreen() {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const { bookId } = route.params || {};
+
+    const [book, setBook] = useState<Book | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (bookId) {
+            loadBook();
+        } else {
+            setLoading(false);
+        }
+    }, [bookId]);
+
+    const loadBook = async () => {
+        try {
+            setLoading(true);
+            const response = await booksService.getBook(bookId);
+            if (response.success) {
+                setBook(response.data);
+            }
+        } catch (error) {
+            console.error('Erreur chargement livre:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color="#f2d00d" />
+            </View>
+        );
+    }
+
+    if (!book) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <Text style={{ color: 'white' }}>Livre non trouvé</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: '#f2d00d' }}>Retour</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -71,10 +97,12 @@ export default function BookDetailScreen() {
 
                     {/* Image du livre */}
                     <View style={styles.bookImageWrapper}>
-                        <Image source={{ uri: bookData.imageUrl }} style={styles.bookImage} />
+                        <Image source={{ uri: book.cover_image_url }} style={styles.bookImage} />
                         <View style={styles.typeBadge}>
-                            <MaterialIcons name="menu-book" size={14} color="#f2d00d" />
-                            <Text style={styles.typeBadgeText}>E-BOOK</Text>
+                            <MaterialIcons name={book.type === 'audiobook' ? 'headset' : 'menu-book'} size={14} color="#f2d00d" />
+                            <Text style={styles.typeBadgeText}>
+                                {book.type === 'audiobook' ? 'LIVRE AUDIO' : 'E-BOOK'}
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -82,60 +110,76 @@ export default function BookDetailScreen() {
                 {/* Contenu principal */}
                 <View style={styles.content}>
                     {/* Titre et auteur */}
-                    <Text style={styles.bookTitle}>{bookData.title}</Text>
-                    <Text style={styles.bookAuthor}>par {bookData.author}</Text>
+                    <Text style={styles.bookTitle}>{book.title}</Text>
+                    <Text style={styles.bookAuthor}>par {book.author}</Text>
 
                     {/* Notes et stats */}
                     <View style={styles.statsRow}>
                         <View style={styles.ratingBadge}>
                             <MaterialIcons name="star" size={16} color="#f2d00d" />
-                            <Text style={styles.ratingText}>{bookData.rating}</Text>
-                            <Text style={styles.reviewsText}>({bookData.reviewsCount} avis)</Text>
+                            <Text style={styles.ratingText}>{book.rating}</Text>
+                            <Text style={styles.reviewsText}>({book.ratings_count} avis)</Text>
                         </View>
-                        <View style={styles.statsDivider} />
-                        <Text style={styles.statsText}>{bookData.pages} pages</Text>
-                        <View style={styles.statsDivider} />
-                        <Text style={styles.statsText}>{bookData.language}</Text>
+                        {book.type === 'ebook' && book.size && (
+                            <>
+                                <View style={styles.statsDivider} />
+                                <Text style={styles.statsText}>{book.size}</Text>
+                            </>
+                        )}
+                        {book.type === 'audiobook' && book.duration && (
+                            <>
+                                <View style={styles.statsDivider} />
+                                <Text style={styles.statsText}>{book.duration}</Text>
+                            </>
+                        )}
                     </View>
 
                     {/* Prix */}
                     <View style={styles.priceSection}>
                         <View style={styles.priceRow}>
-                            <Text style={styles.currentPrice}>{formatPrice(bookData.price)}</Text>
-                            <Text style={styles.originalPrice}>{formatPrice(bookData.originalPrice)}</Text>
-                            <View style={styles.discountBadge}>
-                                <Text style={styles.discountText}>-33%</Text>
-                            </View>
+                            <Text style={styles.currentPrice}>{book.formatted_price || formatPrice(book.price)}</Text>
+                            {/* Affichage du prix original si réduction (non fourni par API mais mockup le supportait) */}
+                            {book.discount_percentage && (
+                                <View style={styles.discountBadge}>
+                                    <Text style={styles.discountText}>-{book.discount_percentage}%</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
 
                     {/* Description */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Description</Text>
-                        <Text style={styles.descriptionText}>{bookData.description}</Text>
+                        <Text style={styles.descriptionText}>{book.description}</Text>
                         <TouchableOpacity>
                             <Text style={styles.readMoreText}>Lire plus</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Chapitres */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Contenu ({bookData.chapters.length} chapitres)</Text>
-                        <View style={styles.chaptersList}>
-                            {bookData.chapters.map((chapter, index) => (
-                                <View key={index} style={styles.chapterItem}>
-                                    <View style={styles.chapterNumber}>
-                                        <Text style={styles.chapterNumberText}>{index + 1}</Text>
+                    {book.chapters && book.chapters.length > 0 && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Contenu ({book.chapters.length} chapitres)</Text>
+                            <View style={styles.chaptersList}>
+                                {book.chapters.map((chapter, index) => (
+                                    <View key={chapter.id} style={styles.chapterItem}>
+                                        <View style={styles.chapterNumber}>
+                                            <Text style={styles.chapterNumberText}>{chapter.chapter_number}</Text>
+                                        </View>
+                                        <View style={styles.chapterInfo}>
+                                            <Text style={styles.chapterTitle}>{chapter.title}</Text>
+                                            <Text style={styles.chapterDuration}>{chapter.duration}</Text>
+                                        </View>
+                                        <MaterialIcons
+                                            name={chapter.is_free_preview ? "play-circle" : "lock"}
+                                            size={20}
+                                            color={chapter.is_free_preview ? "#f2d00d" : "rgba(255,255,255,0.3)"}
+                                        />
                                     </View>
-                                    <View style={styles.chapterInfo}>
-                                        <Text style={styles.chapterTitle}>{chapter.title}</Text>
-                                        <Text style={styles.chapterDuration}>{chapter.duration}</Text>
-                                    </View>
-                                    <MaterialIcons name="lock" size={20} color="rgba(255,255,255,0.3)" />
-                                </View>
-                            ))}
+                                ))}
+                            </View>
                         </View>
-                    </View>
+                    )}
 
                     {/* Détails */}
                     <View style={styles.section}>
@@ -143,20 +187,16 @@ export default function BookDetailScreen() {
                         <View style={styles.detailsGrid}>
                             <View style={styles.detailItem}>
                                 <Text style={styles.detailLabel}>Format</Text>
-                                <Text style={styles.detailValue}>PDF, EPUB</Text>
+                                <Text style={styles.detailValue}>
+                                    {book.type === 'audiobook' ? 'MP3' : 'PDF, EPUB'}
+                                </Text>
                             </View>
-                            <View style={styles.detailItem}>
-                                <Text style={styles.detailLabel}>Publication</Text>
-                                <Text style={styles.detailValue}>{bookData.publishDate}</Text>
-                            </View>
-                            <View style={styles.detailItem}>
-                                <Text style={styles.detailLabel}>Langue</Text>
-                                <Text style={styles.detailValue}>{bookData.language}</Text>
-                            </View>
-                            <View style={styles.detailItem}>
-                                <Text style={styles.detailLabel}>Pages</Text>
-                                <Text style={styles.detailValue}>{bookData.pages}</Text>
-                            </View>
+                            {book.category && (
+                                <View style={styles.detailItem}>
+                                    <Text style={styles.detailLabel}>Catégorie</Text>
+                                    <Text style={styles.detailValue}>{book.category.name}</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                 </View>
@@ -184,6 +224,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#221f10',
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollView: {
         flex: 1,
@@ -315,12 +359,6 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: 'bold',
         color: '#f2d00d',
-    },
-    originalPrice: {
-        fontSize: 16,
-        color: 'rgba(255,255,255,0.4)',
-        textDecorationLine: 'line-through',
-        marginLeft: 12,
     },
     discountBadge: {
         backgroundColor: '#ff4444',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,73 +6,13 @@ import {
     ScrollView,
     TouchableOpacity,
     ImageBackground,
-    StyleSheet
+    StyleSheet,
+    ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-
-const books = [
-    {
-        id: '1',
-        title: 'Marcher dans la Foi',
-        author: 'Pasteur Francis',
-        price: 5000,
-        type: 'ebook',
-        isBestSeller: true,
-        isNew: true,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC65_rrcQgI7Gg6AFnG2ElqYdwOVh0f5oNsF1AJN41YiG0mqXmO8VPWwV5uz1IUuqHXItOiFyfNFuZW1N8k6IWXSIhvRYKANNpVjeYTOJl5WkHmIdOg1WoJrs59x1CncjT-UQMC5iH89RupyrYRiCKDvxSp6xOh9myp82edUdn1peA-QDdCTTUmUxURjoniO_5G3y9pxL-w2qyRQ-tUMkGeYJNNaRpEjNVrPeHl57Y3WBr_BNPXkJJIcWZbiPoqdOB3oGgUW5p9OcEe',
-    },
-    {
-        id: '2',
-        title: 'L\'Onction Divine',
-        author: 'Pasteur Francis',
-        price: 7500,
-        type: 'audiobook',
-        isBestSeller: true,
-        isNew: true,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB1tJ-Wy2qhlI6vWxTjRzQ0xYlg_FA2Vn3yiwysyEQ3DxDxXtcdf-fTX834BtDztrY4t7pknZGRwWuvbNM4sMBz_HXzecOgVXnDMeS0pmV8wboZ77cBFraZ6T5xM6UnZHXYz7S0N6ecn7RXYFepxGlhurfJLrXd1kAUXiy4XRkj94MqsYoL7zTmOQXgqngYz60j8hIdzuwFVIs9UFUmgmRBn2qh6vJ1IoFHSlZHRdKatQFc9jft_gQ-jHhYczS2ijBGCt6ulpXMZAvI',
-    },
-    {
-        id: '3',
-        title: 'Une Vie avec un But',
-        author: 'Pasteur Francis',
-        price: 4500,
-        type: 'ebook',
-        isBestSeller: false,
-        isNew: false,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAk_P96jDVIlRGcwtDeWuAOwJYUlNH5eP85VmkDZov9NnDTzvtwBRFXQmG8KeR0mClBTAWUfwczdA1W4rrfs_or3v9W2n-IiSuJx6nPQg95hioWEB88fl_yRU97BJcsWFJzc4m65MA4ctYs-6BqT-0l19OLx2mNlmbOA2bnreEo5wqNMgEwZXZ6Va_8wIb3Bes3knDAjwe-OwgMl_-W0W4jniFlJR7GHTPlzD44Viys6aYOkjMfBqMpgar9SJyZcTUe0MAptwpC2ujF',
-    },
-    {
-        id: '4',
-        title: 'Guérison Divine',
-        author: 'Pasteur Francis',
-        price: 6000,
-        type: 'audiobook',
-        isBestSeller: false,
-        isNew: false,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBfKNyvZxVCceSH1_w0YHwYqXg13l_xgpIut6zqnKmwsz_N7TVjJiGun-nIeH4scRV7F8eCIMOMW5WwUjnhA9suDx3LlntsNqmYOjZvuJugt_Z_TBwl2GHUaEpMv81z3xZt_t-oFBh6OBuzjCCh7MaFK_nNo7BI2kuuzZQB9748XW3vXImy4bYoGH0Eqb0z55OlPV9M1I-1Oa6gbiwrI_FPLG2tMHYbdWGT-AsE5NO9CWd1yZF9_UmhnGiO3Pp2tCwKt93SZsF63wtx',
-    },
-    {
-        id: '5',
-        title: 'Prières Puissantes',
-        author: 'Pasteur Francis',
-        price: 3500,
-        type: 'ebook',
-        isBestSeller: false,
-        isNew: true,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAPZ1urFQMpFgEXXE2GB2TMW5KaPzBTQ3B_YVmP7xEtngDx9_1K_ahD0js5_SsA-1ETkkjoK8fuW_1xVp1c2Si156yhIHSKxjYU4Qj9SEJkSpLkD3egaPtSD290RUZ6jGMcmzumqd9Ab308TUQYex-dKALuzweKhmBNURjEQtG985tQawMGHX8AAPLRipGY51sJAA3295BGj5IalVpUJ6CMMmQL3XK-uL_qr1pP3rH9dJYD5Rr1LDosjP945VEVG6WruGyUhW8yAj7w',
-    },
-    {
-        id: '6',
-        title: 'La Sagesse Divine',
-        author: 'Pasteur Francis',
-        price: 8000,
-        type: 'audiobook',
-        isBestSeller: true,
-        isNew: false,
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAhSOu10N9ERlhJYg2HQKt_D8a0fMnP9bFVBJV7TtAviK99OGvZAQcYIP0cZVR-7HrN_Ju0wvN0cmISOOV0w_d-TqdqZWuaR3mpxZGDrm5aRFJT6QEtjhHFB0w4u8Rv_EajIb3mSscBKDdtSxvlfFfpkcOnyRvTQ5Aul8wbSQFAzMiv-ARedBTOINs6a47NE3aoIoeVAuxELXz-SGjN-OaXHO2ZtZxh_ZQy2uivotWDF5ZikVCHjnB_yOIwI39jYxeOxouJbcUnyIhL',
-    },
-];
+import { booksService } from '../services/api';
+import { Book } from '../types/api';
 
 type CategoryType = 'all' | 'audiobook' | 'ebook';
 
@@ -89,15 +29,44 @@ const formatPrice = (price: number) => {
 export default function StoreScreen() {
     const navigation = useNavigation<any>();
     const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
+    const [books, setBooks] = useState<Book[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadBooks();
+    }, []);
+
+    const loadBooks = async () => {
+        try {
+            setLoading(true);
+            const response = await booksService.getBooks();
+            if (response.success) {
+                setBooks(response.data);
+            }
+        } catch (error) {
+            console.error('Erreur chargement livres:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Filtrage des livres selon la catégorie
     const filteredBooks = activeCategory === 'all'
         ? books
         : books.filter(book => book.type === activeCategory);
 
-    const newReleases = filteredBooks.filter(b => b.isNew).slice(0, 2);
-    const bestSellers = filteredBooks.filter(b => b.isBestSeller);
+    const newReleases = filteredBooks.filter(b => b.is_new).slice(0, 5);
+    const bestSellers = filteredBooks.filter(b => b.is_bestseller);
+    const featuredBook = books.find(b => b.is_featured) || books[0];
     const allFiltered = filteredBooks;
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent]}>
+                <ActivityIndicator size="large" color="#f2d00d" />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -108,7 +77,7 @@ export default function StoreScreen() {
             >
                 {/* En-tête */}
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.searchButton}>
+                    <TouchableOpacity style={styles.searchButton} onPress={() => navigation.navigate('Search')}>
                         <MaterialIcons name="search" size={28} color="rgba(255,255,255,0.6)" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Librairie</Text>
@@ -118,7 +87,7 @@ export default function StoreScreen() {
                     >
                         <MaterialIcons name="shopping-cart" size={24} color="rgba(255,255,255,0.6)" />
                         <View style={styles.cartBadge}>
-                            <Text style={styles.cartBadgeText}>2</Text>
+                            <Text style={styles.cartBadgeText}>0</Text>
                         </View>
                     </TouchableOpacity>
                 </View>
@@ -148,23 +117,29 @@ export default function StoreScreen() {
                 </View>
 
                 {/* Bannière Featured */}
-                <View style={styles.bannerContainer}>
-                    <View style={styles.banner}>
-                        <ImageBackground
-                            source={{ uri: books[1].imageUrl }}
-                            style={styles.bannerImage}
-                            imageStyle={{ opacity: 0.6, borderRadius: 16 }}
+                {featuredBook && (
+                    <View style={styles.bannerContainer}>
+                        <TouchableOpacity
+                            style={styles.banner}
+                            onPress={() => navigation.navigate('BookDetail', { bookId: featuredBook.id })} // Correction navigation
+                            activeOpacity={0.9}
                         >
-                            <View style={styles.bannerContent}>
-                                <Text style={styles.bannerLabel}>SORTIE EN VEDETTE</Text>
-                                <Text style={styles.bannerTitle}>L'Onction de la Sagesse</Text>
-                                <TouchableOpacity style={styles.bannerButton}>
-                                    <Text style={styles.bannerButtonText}>En savoir plus</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </ImageBackground>
+                            <ImageBackground
+                                source={{ uri: featuredBook.cover_image_url }}
+                                style={styles.bannerImage}
+                                imageStyle={{ opacity: 0.6, borderRadius: 16 }}
+                            >
+                                <View style={styles.bannerContent}>
+                                    <Text style={styles.bannerLabel}>EN VEDETTE</Text>
+                                    <Text style={styles.bannerTitle} numberOfLines={2}>{featuredBook.title}</Text>
+                                    <View style={styles.bannerButton}>
+                                        <Text style={styles.bannerButtonText}>Découvrir</Text>
+                                    </View>
+                                </View>
+                            </ImageBackground>
+                        </TouchableOpacity>
                     </View>
-                </View>
+                )}
 
                 {/* Nouveautés */}
                 {newReleases.length > 0 && (
@@ -175,16 +150,16 @@ export default function StoreScreen() {
                                 <Text style={styles.seeAllText}>Voir tout</Text>
                             </TouchableOpacity>
                         </View>
-                        <View style={styles.booksRow}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {newReleases.map((book, index) => (
                                 <TouchableOpacity
                                     key={book.id}
                                     style={[styles.bookCard, index > 0 && { marginLeft: 16 }]}
-                                    onPress={() => navigation.navigate('Checkout')}
+                                    onPress={() => navigation.navigate('BookDetail', { bookId: book.id })}
                                     activeOpacity={0.8}
                                 >
                                     <View style={styles.bookImageWrapper}>
-                                        <Image source={{ uri: book.imageUrl }} style={styles.bookImage} />
+                                        <Image source={{ uri: book.cover_image_url }} style={styles.bookImage} />
                                         <View style={styles.bookTypeBadge}>
                                             <MaterialIcons
                                                 name={book.type === 'audiobook' ? 'headset' : 'menu-book'}
@@ -198,12 +173,12 @@ export default function StoreScreen() {
                                     <View style={styles.bookFooter}>
                                         <Text style={styles.bookPrice}>{formatPrice(book.price)}</Text>
                                         <View style={styles.buyButton}>
-                                            <Text style={styles.buyButtonText}>ACHETER</Text>
+                                            <Text style={styles.buyButtonText}>VOIR</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
                             ))}
-                        </View>
+                        </ScrollView>
                     </View>
                 )}
 
@@ -225,10 +200,10 @@ export default function StoreScreen() {
                                 <TouchableOpacity
                                     key={book.id}
                                     style={[styles.bestsellerCard, index > 0 && { marginLeft: 16 }]}
-                                    onPress={() => navigation.navigate('Checkout')}
+                                    onPress={() => navigation.navigate('BookDetail', { bookId: book.id })}
                                     activeOpacity={0.8}
                                 >
-                                    <Image source={{ uri: book.imageUrl }} style={styles.bestsellerImage} />
+                                    <Image source={{ uri: book.cover_image_url }} style={styles.bestsellerImage} />
                                     <View style={styles.bestsellerInfo}>
                                         <View>
                                             <View style={styles.bookTypeRow}>
@@ -247,7 +222,7 @@ export default function StoreScreen() {
                                         <View style={styles.bestsellerFooter}>
                                             <Text style={styles.bestsellerPrice}>{formatPrice(book.price)}</Text>
                                             <View style={styles.buyButton}>
-                                                <Text style={styles.buyButtonText}>ACHETER</Text>
+                                                <Text style={styles.buyButtonText}>VOIR</Text>
                                             </View>
                                         </View>
                                     </View>
@@ -270,12 +245,12 @@ export default function StoreScreen() {
                         {allFiltered.map((book, index) => (
                             <TouchableOpacity
                                 key={book.id}
-                                style={[styles.gridBookCard, index % 2 === 1 && { marginLeft: 12 }]}
-                                onPress={() => navigation.navigate('Checkout')}
+                                style={[styles.gridBookCard, index % 2 === 1 && { marginLeft: '2%' }]}
+                                onPress={() => navigation.navigate('BookDetail', { bookId: book.id })}
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.gridBookImageWrapper}>
-                                    <Image source={{ uri: book.imageUrl }} style={styles.bookImage} />
+                                    <Image source={{ uri: book.cover_image_url }} style={styles.bookImage} />
                                     <View style={styles.bookTypeBadge}>
                                         <MaterialIcons
                                             name={book.type === 'audiobook' ? 'headset' : 'menu-book'}
@@ -300,6 +275,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#221f10',
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     scrollView: {
         flex: 1,
@@ -407,6 +386,9 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 12,
         color: 'white',
+        textShadowColor: 'rgba(0,0,0,0.7)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     bannerButton: {
         backgroundColor: '#f2d00d',
@@ -450,9 +432,10 @@ const styles = StyleSheet.create({
     booksGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        justifyContent: 'space-between',
     },
     bookCard: {
-        flex: 1,
+        width: 140, // Fixed width for horizontal scrolling
         backgroundColor: 'white',
         borderRadius: 12,
         padding: 12,
@@ -463,11 +446,11 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     gridBookCard: {
-        width: '47%',
+        width: '48%',
         backgroundColor: 'rgba(255,255,255,0.05)',
         borderRadius: 12,
         padding: 12,
-        marginBottom: 12,
+        marginBottom: 16,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
     },
@@ -509,7 +492,7 @@ const styles = StyleSheet.create({
     },
     bookAuthor: {
         fontSize: 12,
-        color: 'rgba(255,255,255,0.5)',
+        color: 'rgba(255,255,255,0.5)', // Adjusted for light card visibility if needed, but card is white
         marginBottom: 8,
         marginTop: 2,
     },
